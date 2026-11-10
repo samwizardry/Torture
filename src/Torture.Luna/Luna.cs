@@ -1,5 +1,6 @@
 ﻿using Torture.Core;
 using Torture.Core.Graphics;
+using Torture.Core.Input;
 
 using Vortice.Mathematics;
 
@@ -32,6 +33,18 @@ public sealed partial class Luna : Application<Luna>
 
     protected override void Update(GameTime gameTime)
     {
+        Task.Delay(16).ConfigureAwait(false).GetAwaiter().GetResult();
+
+        if (Keyboard.IsKeyPressed(KeyboardKey.Escape))
+        {
+            Exit();
+        }
+
+        var deltaPos = Mouse.Delta;
+        var pos = Mouse.Position;
+
+        Console.WriteLine($"pos ({pos.X}, {pos.Y})\tdelta({deltaPos.X}, {deltaPos.Y})");
+
         if (_showFpsInTitle)
         {
             _frameCount++;

@@ -3,6 +3,7 @@
 using SDL3;
 
 using Torture.Core.Graphics;
+using Torture.Core.Input;
 
 using Vortice.Mathematics;
 
@@ -192,6 +193,10 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
 
         GraphicsDevice = CreateGraphicsDevice(PreferredBackend, GetNativeWindowInfo(Window));
 
+        // Initialize systems
+        Keyboard.Initialize();
+        Mouse.Initialize(Window);
+
         Initialize();
         BeginRun();
 
@@ -210,8 +215,11 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
         TimeSpan totalTime = _timer.Elapsed;
         TimeSpan elapsedTime = totalTime - _lastFrameTime;
         _lastFrameTime = totalTime;
-
         var gameTime = new GameTime(totalTime, elapsedTime);
+
+        // Update systems
+        Keyboard.Update();
+        Mouse.Update();
 
         Update(gameTime);
 
@@ -284,6 +292,10 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
                     OnWindowModeChanged(_windowMode);
                 }
                 break;
+
+            case SDL.EventType.MouseWheel:
+                Mouse.OnScrollWheel(e.Wheel.X, e.Wheel.Y);
+                break;
         }
 
         return SDL.AppResult.Continue;
@@ -296,6 +308,10 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
         EndRun();
         UnloadContent();
         Cleanup();
+
+        // Shutdown systems
+        Mouse.Shutdown();
+        Keyboard.Shutdown();
 
         GraphicsDevice?.Dispose();
         GraphicsDevice = null!;
