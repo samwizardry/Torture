@@ -1,5 +1,13 @@
 <Solution>
+  <Folder Name="/root/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Luna/Luna.csproj" />
+    <Project Path="src/Torture.Core/Torture.Core.csproj" />
+    <Project Path="src/Torture.Graphics.Direct3D11/Torture.Graphics.Direct3D11.csproj" />
+    <Project Path="src/Torture.Graphics.Vulkan/Torture.Graphics.Vulkan.csproj" />
+    <Project Path="src/Torture.Luna/Torture.Luna.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,28 @@
+<Project>
+  <!-- See https://aka.ms/dotnet/msbuild/customize for more details on customizing your build -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TortureTargetOS Condition="'$(RuntimeIdentifier)' != '' and $(RuntimeIdentifier.StartsWith('win'))">Windows</TortureTargetOS>
+    <TortureTargetOS Condition="'$(RuntimeIdentifier)' != '' and $(RuntimeIdentifier.StartsWith('linux'))">Linux</TortureTargetOS>
+    <TortureTargetOS Condition="'$(RuntimeIdentifier)' != '' and $(RuntimeIdentifier.StartsWith('osx'))">macOS</TortureTargetOS>
+    <TortureTargetOS Condition="'$(TortureTargetOS)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">Windows</TortureTargetOS>
+    <TortureTargetOS Condition="'$(TortureTargetOS)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">Linux</TortureTargetOS>
+    <TortureTargetOS Condition="'$(TortureTargetOS)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">macOS</TortureTargetOS>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TortureTargetOS)' == 'Windows'">
+    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS;SUPPORT_DIRECTX;SUPPORT_VULKAN</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TortureTargetOS)' == 'Linux'">
+    <DefineConstants>$(DefineConstants);PLATFORM_LINUX;SUPPORT_VULKAN</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TortureTargetOS)' == 'macOS'">
+    <DefineConstants>$(DefineConstants);PLATFORM_MACOS;SUPPORT_VULKAN</DefineConstants>
+  </PropertyGroup>
+
+</Project>

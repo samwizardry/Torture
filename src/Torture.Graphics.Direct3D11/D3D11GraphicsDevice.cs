@@ -1,13 +1,12 @@
 ﻿// Copyright (c) Amer Koleci and contributors.
 // Licensed under the MIT License (MIT). See LICENSE in the repository root for more information.
 
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-using Luna;
-
 using SharpGen.Runtime;
+
+using Torture.Core.Graphics;
 
 using Vortice;
 using Vortice.D3DCompiler;
@@ -21,17 +20,17 @@ using Vortice.Mathematics;
 using static Vortice.Direct3D11.D3D11;
 using static Vortice.DXGI.DXGI;
 
-namespace Luna;
+namespace Torture.Graphics.Direct3D11;
 
-public sealed class D3D11GraphicsDevice : IDisposable
+public sealed class D3D11GraphicsDevice : IGraphicsDevice
 {
-    private static readonly FeatureLevel[] s_featureLevels = new[]
-    {
+    private static readonly FeatureLevel[] s_featureLevels =
+    [
         FeatureLevel.Level_11_1,
         FeatureLevel.Level_11_0,
         FeatureLevel.Level_10_1,
         FeatureLevel.Level_10_0
-    };
+    ];
 
     private const int FrameCount = 2;
 
@@ -55,6 +54,8 @@ public sealed class D3D11GraphicsDevice : IDisposable
     private readonly ID3D11VertexShader _vertexShader;
     private readonly ID3D11PixelShader _pixelShader;
     private readonly ID3D11InputLayout _inputLayout;
+
+    SizeI IGraphicsDevice.Size => throw new NotImplementedException();
 
     public static bool IsSupported()
     {
@@ -165,8 +166,8 @@ public sealed class D3D11GraphicsDevice : IDisposable
             new InputElementDescription("COLOR", 0, Format.R32G32B32A32_Float, 12, 0)
         ];
 
-        ReadOnlyMemory<byte> vertexShaderByteCode = CompileBytecode("Triangle_11.hlsl", "VSMain", "vs_4_0");
-        ReadOnlyMemory<byte> pixelShaderByteCode = CompileBytecode("Triangle_11.hlsl", "PSMain", "ps_4_0");
+        ReadOnlyMemory<byte> vertexShaderByteCode = CompileBytecode("Triangle.hlsl", "VSMain", "vs_4_0");
+        ReadOnlyMemory<byte> pixelShaderByteCode = CompileBytecode("Triangle.hlsl", "PSMain", "ps_4_0");
 
         _vertexShader = Device.CreateVertexShader(vertexShaderByteCode.Span);
         _pixelShader = Device.CreatePixelShader(pixelShaderByteCode.Span);
@@ -479,5 +480,10 @@ public sealed class D3D11GraphicsDevice : IDisposable
         //string shaderSource = File.ReadAllText(Path.Combine(assetsPath, shaderName));
 
         return Compiler.CompileFromFile(shaderFile, entryPoint, profile);
+    }
+
+    public void Resize(int width, int height)
+    {
+        throw new NotImplementedException();
     }
 }

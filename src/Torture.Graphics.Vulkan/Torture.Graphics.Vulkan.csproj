@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Vortice.ShaderCompiler" />
+    <PackageReference Include="Vortice.SpirvCross" />
+    <PackageReference Include="Vortice.Vulkan" />
+    <PackageReference Include="Vortice.VulkanMemoryAllocator" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Torture.Core\Torture.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Torture.Core\Torture.Core.csproj" />
+    <ProjectReference Include="..\Torture.Graphics.Direct3D11\Torture.Graphics.Direct3D11.csproj" Condition="'$(TortureTargetOS)' == 'Windows'" />
+    <ProjectReference Include="..\Torture.Graphics.Vulkan\Torture.Graphics.Vulkan.csproj" Condition="'$(TortureTargetOS)' == 'Linux' or '$(TortureTargetOS)' == 'Windows'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\Triangle.hlsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

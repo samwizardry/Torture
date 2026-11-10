@@ -2,18 +2,28 @@
 
 using SDL3;
 
+using Torture.Core.Graphics;
+
+#if SUPPORT_DIRECTX
+using Torture.Graphics.Direct3D11;
+#endif
+#if SUPPORT_VULKAN
+using Torture.Graphics.Vulkan;
+#endif
+
 using Vortice.Mathematics;
 
-namespace Luna;
+namespace Torture.Luna;
 
 [SDL.GenerateMain]
-internal sealed partial class Application : SDL.IMainCallbacks<Application>
+internal partial class Application : SDL.IMainCallbacks<Application>
 {
-    private nint _window = IntPtr.Zero;
-    private D3D11GraphicsDevice? _graphicsDevice;
-
     private readonly Stopwatch _fpsTimer = new();
+
+    private nint _window = IntPtr.Zero;
     private int _frameCount;
+
+    public IGraphicsDevice GraphicsDevice { get; private set; } = null!;
 
     public static SDL.AppResult AppInit(out Application? app, string[] args)
     {
@@ -54,7 +64,7 @@ internal sealed partial class Application : SDL.IMainCallbacks<Application>
         var size = new SizeI(width, height);
         var bounds = new RectI(x, y, width, height);
 
-        app._graphicsDevice = new D3D11GraphicsDevice(hwnd, size, bounds);
+        app.GraphicsDevice = CreateGraphicsDevice(GraphicsBackend.Default, new NativeWindowInfo(app._window, hwnd, size, bounds));
         //app._graphicsDevice = new D3D12GraphicsDevice(true, hwnd, size);
         app._fpsTimer.Start();
 
@@ -63,7 +73,7 @@ internal sealed partial class Application : SDL.IMainCallbacks<Application>
 
     public SDL.AppResult AppIterate()
     {
-        _graphicsDevice?.DrawFrame(OnDraw);
+        GraphicsDevice.DrawFrame(OnDraw);
 
         // Считаем реальный FPS раз в секунду без спама в консоль на каждый кадр
         _frameCount++;
@@ -97,8 +107,8 @@ internal sealed partial class Application : SDL.IMainCallbacks<Application>
 
     public void AppQuit(SDL.AppResult result)
     {
-        _graphicsDevice?.Dispose();
-        _graphicsDevice = null;
+        GraphicsDevice?.Dispose();
+        GraphicsDevice = null!;
 
         if (_window != IntPtr.Zero)
         {
@@ -111,5 +121,21 @@ internal sealed partial class Application : SDL.IMainCallbacks<Application>
 
     private static void OnDraw(int width, int height)
     {
+    }
+
+    public static IGraphicsDevice CreateGraphicsDevice(GraphicsBackend backend, NativeWindowInfo window)
+    {
+        return backend switch
+        {
+#if SUPPORT_DIRECTX
+            GraphicsBackend.Default or GraphicsBackend.Direct3D11
+                => new D3D11GraphicsDevice(window.Win32Hwnd, window.Size, window.Bounds),
+#endif
+#if SUPPORT_VULKAN
+            GraphicsBackend.Vulkan
+                => new VulkanGraphicsDevice(),
+#endif
+            _ => throw new PlatformNotSupportedException($"Backend {backend} is not supported on this platform.")
+        };
     }
 }

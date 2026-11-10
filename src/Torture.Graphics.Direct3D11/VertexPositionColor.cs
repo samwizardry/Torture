@@ -2,7 +2,7 @@
 
 using Vortice.Mathematics;
 
-namespace Luna;
+namespace Torture.Graphics.Direct3D11;
 
 public readonly struct VertexPositionColor
 {

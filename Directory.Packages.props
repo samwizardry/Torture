@@ -1,0 +1,33 @@
+<Project>
+  <PropertyGroup>
+    <!-- Enable central package management, https://learn.microsoft.com/en-us/nuget/consume-packages/Central-Package-Management -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageVersion Include="SDL3-CS" Version="3.4.20" />
+    <PackageVersion Include="Vortice.Mathematics" Version="2.1.1" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TortureTargetOS)' == 'Windows'">
+    <PackageVersion Include="SDL3-CS.Windows" Version="3.4.20" />
+    <PackageVersion Include="Vortice.D3DCompiler" Version="3.8.3" />
+    <PackageVersion Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageVersion Include="Vortice.DXGI" Version="3.8.3" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TortureTargetOS)' == 'Linux'">
+    <PackageVersion Include="SDL3-CS.Linux" Version="3.4.20" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TortureTargetOS)' == 'Linux' or '$(TortureTargetOS)' == 'Windows'">
+    <PackageVersion Include="Vortice.ShaderCompiler" Version="1.9.0" />
+    <PackageVersion Include="Vortice.SpirvCross" Version="1.6.0" />
+    <PackageVersion Include="Vortice.Vulkan" Version="3.3.0" />
+    <PackageVersion Include="Vortice.VulkanMemoryAllocator" Version="1.8.0" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TortureTargetOS)' == 'macOS'">
+    <PackageVersion Include="SDL3-CS.MacOS" Version="3.4.20" />
+  </ItemGroup>
+</Project>
