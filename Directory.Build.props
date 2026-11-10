@@ -15,12 +15,15 @@
     <TortureTargetOS Condition="'$(TortureTargetOS)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">Linux</TortureTargetOS>
     <TortureTargetOS Condition="'$(TortureTargetOS)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">macOS</TortureTargetOS>
   </PropertyGroup>
+  
   <PropertyGroup Condition="'$(TortureTargetOS)' == 'Windows'">
     <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS;SUPPORT_DIRECTX;SUPPORT_VULKAN</DefineConstants>
   </PropertyGroup>
+  
   <PropertyGroup Condition="'$(TortureTargetOS)' == 'Linux'">
     <DefineConstants>$(DefineConstants);PLATFORM_LINUX;SUPPORT_VULKAN</DefineConstants>
   </PropertyGroup>
+  
   <PropertyGroup Condition="'$(TortureTargetOS)' == 'macOS'">
     <DefineConstants>$(DefineConstants);PLATFORM_MACOS;SUPPORT_VULKAN</DefineConstants>
   </PropertyGroup>
