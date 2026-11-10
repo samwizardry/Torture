@@ -5,8 +5,14 @@
 /// </summary>
 public interface IBuffer : IDisposable
 {
-    uint SizeInBytes { get; }
+    /// <summary>
+    /// The total size, in bytes.
+    /// </summary>
+    uint Size { get; }
 
+    /// <summary>
+    /// A bitmask indicating this buffer usage.
+    /// </summary>
     BufferUsage Usage { get; }
 
     bool IsDynamic { get; }

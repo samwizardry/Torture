@@ -23,7 +23,7 @@ using static Vortice.DXGI.DXGI;
 
 namespace Torture.Graphics.Direct3D11;
 
-public sealed class D3D11GraphicsDevice : IGraphicsDevice
+public sealed class GraphicsDevice : IGraphicsDevice
 {
     /// <summary>
     /// Gets the active graphics backend type.
@@ -49,11 +49,6 @@ public sealed class D3D11GraphicsDevice : IGraphicsDevice
     /// Gets or sets whether vertical synchronization (VSync) is enabled.
     /// </summary>
     public bool VSync { get; set; }
-
-    public void Dispose()
-    {
-
-    }
 
     // ========================================================================
     // Window & Display State Notifications
@@ -180,4 +175,14 @@ public sealed class D3D11GraphicsDevice : IGraphicsDevice
     /// Executes a compute shader with thread group counts generated on the GPU in an indirect arguments buffer.
     /// </summary>
     public void DispatchIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
+
+    private bool _disposed = false;
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+    }
 }

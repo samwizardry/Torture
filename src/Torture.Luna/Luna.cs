@@ -1,25 +1,15 @@
-﻿using System.Diagnostics;
-
-using Vortice.Mathematics;
-
-using Torture.Core;
+﻿using Torture.Core;
 using Torture.Core.Graphics;
 
-#if SUPPORT_DIRECTX
-using Torture.Graphics.Direct3D11;
-
-#endif
-#if SUPPORT_VULKAN
-using Torture.Graphics.Vulkan;
-#endif
+using Vortice.Mathematics;
 
 namespace Torture.Luna;
 
 [SDL3.SDL.GenerateMain]
 public sealed partial class Luna : Application<Luna>
 {
-    private readonly Stopwatch _fpsTimer = new();
     private readonly bool _showFpsInTitle = true;
+    private float _elapsedSeconds;
     private int _frameCount;
 
     public Luna()
@@ -33,7 +23,6 @@ public sealed partial class Luna : Application<Luna>
 
     protected override void Initialize()
     {
-        _fpsTimer.Start();
         base.Initialize();
     }
 
@@ -46,13 +35,13 @@ public sealed partial class Luna : Application<Luna>
         if (_showFpsInTitle)
         {
             _frameCount++;
-            double fpsElapsed = _fpsTimer.Elapsed.TotalSeconds;
-            if (fpsElapsed >= 1.0)
+            _elapsedSeconds += gameTime.DeltaSeconds;
+            if (_elapsedSeconds >= 1.0f)
             {
-                double fps = _frameCount / fpsElapsed;
+                double fps = _frameCount / _elapsedSeconds;
                 Title = $"Luna | FPS: {fps:F1}";
+                _elapsedSeconds -= 1.0f;
                 _frameCount = 0;
-                _fpsTimer.Restart();
             }
         }
     }
@@ -76,7 +65,7 @@ public sealed partial class Luna : Application<Luna>
 #if SUPPORT_DIRECTX
             backend = GraphicsBackend.Direct3D11;
 #elif SUPPORT_VULKAN
-            backend = GraphicsBackend.Vulkan;
+            //backend = GraphicsBackend.Vulkan;
 #endif
         }
 
@@ -85,11 +74,11 @@ public sealed partial class Luna : Application<Luna>
 #if SUPPORT_DIRECTX
             GraphicsBackend.Direct3D11
                 //=> new D3D11GraphicsDevice(window.Win32Hwnd, window.Size, window.Bounds),
-                => new D3D11GraphicsDevice(),
+                => new Torture.Graphics.Direct3D11.GraphicsDevice(),
 #endif
 #if SUPPORT_VULKAN
-            GraphicsBackend.Vulkan
-                => new VulkanGraphicsDevice(),
+            //GraphicsBackend.Vulkan
+            //    => new VulkanGraphicsDevice(),
 #endif
             _ => throw new PlatformNotSupportedException($"Backend {backend} is not supported on this platform.")
         };
