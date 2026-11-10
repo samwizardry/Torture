@@ -1,16 +1,6 @@
-﻿// Copyright (c) Amer Koleci and contributors.
-// Licensed under the MIT License (MIT). See LICENSE in the repository root for more information.
-
-using System.Numerics;
-using System.Runtime.CompilerServices;
-
-using SharpGen.Runtime;
-
-using Torture.Core;
+﻿using Torture.Core;
 using Torture.Core.Graphics;
 
-using Vortice;
-using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Direct3D11.Debug;
@@ -23,117 +13,319 @@ using static Vortice.DXGI.DXGI;
 
 namespace Torture.Graphics.Direct3D11;
 
+/// <inheritdoc />
 public sealed class GraphicsDevice : IGraphicsDevice
 {
-    /// <summary>
-    /// Gets the active graphics backend type.
-    /// </summary>
-    public GraphicsBackend Backend { get; }
+    private static readonly FeatureLevel[] FeatureLevels = [
+        FeatureLevel.Level_11_1,
+        FeatureLevel.Level_11_0];
 
-    /// <summary>
-    /// Gets the current render target size in pixels.
-    /// </summary>
-    public SizeI Size { get; }
+    private const int BufferCount = 2;
 
-    /// <summary>
-    /// Gets or sets the active viewport.
-    /// </summary>
-    public Viewport Viewport { get; set; }
+    private readonly bool _tearingSupported;
+    private readonly SwapChainFlags _swapChainFlags;
+    private readonly Format _colorFormat;
+    private readonly Format _depthStencilFormat;
 
-    /// <summary>
-    /// Gets or sets the active scissor rectangle.
-    /// </summary>
-    public RectI ScissorRect { get; set; }
+    private readonly IDXGIFactory7 _factory;
+    private readonly ID3D11Device5 _device;
+    private readonly ID3D11DeviceContext4 _imContext;
+    private readonly IDXGISwapChain1 _swapChain;
+#if DEBUG
+    private readonly ID3D11InfoQueue? _infoQueue;
+#endif
+    private ID3D11Texture2D _rtvBackBuffer = null!;
+    private ID3D11RenderTargetView _renderTargetView = null!;
+    private ID3D11Texture2D _depthStencilBuffer = null!;
+    private ID3D11DepthStencilView _depthStencilView = null!;
 
-    /// <summary>
-    /// Gets or sets whether vertical synchronization (VSync) is enabled.
-    /// </summary>
+    public GraphicsDevice(nint hwnd, SizeI size, Format colorFormat = Format.B8G8R8A8_UNorm, Format depthStencilFormat = Format.D24_UNorm_S8_UInt)
+    {
+        try
+        {
+            Size = size;
+            
+            /*
+             * Родной формат для Windows (DWM и Direct2D): оконный менеджер Windows (Desktop Window Manager) внутри себя работает именно в BGRA8
+             * Для SwapChain (буфера экрана) всегда берём B8G8R8A8_UNorm.
+             */
+            _colorFormat = colorFormat;
+
+            /*
+             * Буфер глубины и трафарета (Depth-Stencil Buffer) решает две задачи:
+             * Depth (Z-буфер): хранит расстояние от камеры до каждого пикселя в диапазоне [0.0 .. 1.0], чтобы близкие объекты перекрывали дальние.
+             * Stencil (Трафарет): хранит 8-битное целое число (0..255) на каждый пиксель. Используется для спецэффектов: масок интерфейса, обводки выделенных объектов (Outlines), порталов, декалей.
+             *
+             * Формат                       Разрядность Depth   Разрядность Stencil
+             * Format.D24_UNorm_S8_UInt     24 бита             8 бит (0..255)
+             *      Классический универсальный выбор, если тебе нужен Stencil (трафарет) и сцена небольшая/средняя.
+             *
+             * Format.D32_Float             32 бита             Нет (0 бит)
+             *      Современный стандарт для 3D-движков и больших открытых пространств, когда Stencil не нужен. За те же 4 байта на пиксель даёт гораздо более высокую точность глубины и спасает от мерцания текстур вдалеке (Z-fighting).
+             *
+             * Format.D32_Float_S8X24_UInt  32 бита             8 бит (+24 бита пустых для выравнивания)
+             *      Когда нужно и 32-битная точность глубины, и Stencil, но весит в 2 раза больше (8 байт на пиксель).
+             *
+             * Format.Unknown               Нет                 Нет
+             *      Для чистых 2D-игр без проверки глубины (экономит видеопамять).
+             */
+            _depthStencilFormat = depthStencilFormat;
+
+            _factory = CreateDXGIFactory1<IDXGIFactory7>();
+
+            _tearingSupported = _factory.PresentAllowTearing;
+
+            using (IDXGIAdapter1 adapter = GetHardwareAdapter())
+            {
+                DeviceCreationFlags deviceCreationFlags = DeviceCreationFlags.BgraSupport;
+
+#if DEBUG
+                if (SdkLayersAvailable())
+                {
+                    deviceCreationFlags |= DeviceCreationFlags.Debug;
+                }
+#endif
+                ID3D11Device? device = null;
+                ID3D11DeviceContext? imContext = null;
+
+                if (D3D11CreateDevice(
+                    adapter,
+                    DriverType.Unknown,
+                    deviceCreationFlags,
+                    FeatureLevels,
+                    out device,
+                    out FeatureLevel featureLevel,
+                    out imContext).Failure)
+                {
+                    device?.Dispose();
+                    imContext?.Dispose();
+
+                    // If the initialization fails, fall back to the WARP device.
+                    // For more information on WARP, see:
+                    // http://go.microsoft.com/fwlink/?LinkId=286690
+                    D3D11CreateDevice(
+                        IntPtr.Zero,
+                        DriverType.Warp,
+                        deviceCreationFlags,
+                        FeatureLevels,
+                        out device,
+                        out featureLevel,
+                        out imContext).CheckError();
+                }
+
+                _device = device.QueryInterface<ID3D11Device5>();
+                _imContext = imContext.QueryInterface<ID3D11DeviceContext4>();
+
+                device.Dispose();
+                imContext.Dispose();
+
+                if (!FeatureLevels.Contains(featureLevel))
+                {
+                    throw new InvalidOperationException("Direct3D Feature Level 11 unsupported.");
+                }
+            }
+
+#if DEBUG
+            // TODO: QueryInterfaceOrNull
+            _infoQueue = _device.QueryInterfaceOrNull<ID3D11InfoQueue>();
+            if (_infoQueue != null)
+            {
+                _infoQueue.SetBreakOnSeverity(MessageSeverity.Corruption, true);
+                _infoQueue.SetBreakOnSeverity(MessageSeverity.Error, true);
+            }
+#endif
+
+            _swapChainFlags = SwapChainFlags.None;
+            if (_tearingSupported)
+            {
+                _swapChainFlags |= SwapChainFlags.AllowTearing;
+            }
+
+            SwapChainDescription1 swapChainDescription = new()
+            {
+                Width = (uint)size.Width,
+                Height = (uint)size.Height,
+                Format = _colorFormat,
+                Stereo = false,
+                SampleDescription = SampleDescription.Default,
+                BufferUsage = Usage.RenderTargetOutput,
+                BufferCount = BufferCount,
+                Scaling = Scaling.Stretch,
+                SwapEffect = SwapEffect.FlipDiscard,
+                AlphaMode = AlphaMode.Ignore,
+                Flags = _swapChainFlags
+            };
+
+            SwapChainFullscreenDescription fullscreenDescription = new()
+            {
+                RefreshRate = new Rational(0, 0),
+                ScanlineOrdering = ModeScanlineOrder.Unspecified,
+                Scaling = ModeScaling.Unspecified,
+                Windowed = true
+            };
+
+            _swapChain = _factory.CreateSwapChainForHwnd(_device, hwnd, swapChainDescription, fullscreenDescription);
+            _factory.MakeWindowAssociation(hwnd, WindowAssociationFlags.IgnoreAltEnter)
+                .CheckError();
+
+            // Handle color space settings for HDR
+            UpdateColorSpace();
+
+            OnResize(size.Width, size.Height);
+        }
+        catch
+        {
+            Dispose();
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public GraphicsBackend Backend { get; } = GraphicsBackend.Direct3D11;
+
+    /// <inheritdoc />
+    public SizeI Size { get; private set; }
+
+    /// <inheritdoc />
+    //public Viewport Viewport { get; set; }
+
+    /// <inheritdoc />
+    //public RectI ScissorRect { get; set; }
+
+    /// <inheritdoc />
     public bool VSync { get; set; }
 
-    // ========================================================================
-    // Window & Display State Notifications
-    // ========================================================================
+    /// <inheritdoc />
+    public Color4 ClearColor { get; set; } = Colors.CornflowerBlue;
 
-    /// <summary>
-    /// Resizes the swap chain and size-dependent back buffers when the window pixel size changes.
-    /// </summary>
-    public void OnResize(int width, int height) { }
+    #region Window & Display State Notifications
 
-    /// <summary>
-    /// Notifies the device that the window moved to new desktop coordinates (used to update HDR/ColorSpace).
-    /// </summary>
+    /// <inheritdoc />
+    public void OnResize(int width, int height)
+    {
+        Size = new SizeI(width, height);
+
+        _imContext.OMSetRenderTargets((ID3D11RenderTargetView)null!);
+
+        // Release the old views, as they hold references to the buffers we
+        // will be destroying. Also release the old depth/stencil buffer.
+        _renderTargetView?.Dispose();
+        _rtvBackBuffer?.Dispose();
+        _depthStencilView?.Dispose();
+        _depthStencilBuffer?.Dispose();
+
+        // Resize the swap chain and recreate the render target view.
+        _swapChain.ResizeBuffers(BufferCount, (uint)width, (uint)height, _colorFormat, _swapChainFlags).CheckError();
+
+        _rtvBackBuffer = _swapChain.GetBuffer<ID3D11Texture2D>(0);
+        _renderTargetView = _device.CreateRenderTargetView(_rtvBackBuffer);
+
+        // Create the depth/stencil buffer and view.
+        _depthStencilBuffer = _device.CreateTexture2D(_depthStencilFormat, (uint)width, (uint)height,
+                arraySize: 1, mipLevels: 1, initialData: null,
+                bindFlags: BindFlags.DepthStencil, miscFlags: ResourceOptionFlags.None,
+                usage: ResourceUsage.Default, cpuAccessFlags: CpuAccessFlags.None);
+        _depthStencilView = _device.CreateDepthStencilView(_depthStencilBuffer, new DepthStencilViewDescription(_depthStencilBuffer, DepthStencilViewDimension.Texture2D));
+
+        // Bind the render target view and depth/stencil view to the pipeline.
+        _imContext.OMSetRenderTargets(_renderTargetView, _depthStencilView);
+
+        // Set the viewport transform.
+        _imContext.RSSetViewport(0, 0, (float)width, (float)height, 0.0f, 1.0f);
+    }
+
+    /// <inheritdoc />
     public void OnWindowMoved(RectI bounds) { }
 
-    /// <summary>
-    /// Notifies the device that the window display mode changed (Windowed, BorderlessFullscreen, or Fullscreen).
-    /// </summary>
+    /// <inheritdoc />
     public void OnWindowModeChanged(WindowMode mode) { }
 
-    /// <summary>
-    /// Notifies the device that the window was minimized, allowing driver resource trimming or suspension.
-    /// </summary>
+    /// <inheritdoc />
     public void OnMinimized() { }
 
-    /// <summary>
-    /// Notifies the device that the window was restored from a minimized state.
-    /// </summary>
+    /// <inheritdoc />
     public void OnRestored() { }
 
-    // ========================================================================
-    // Frame Lifecycle & Render Target Control
-    // ========================================================================
+    #endregion
 
-    /// <summary>
-    /// Acquires the next swap chain image and prepares the command context for recording a frame.
-    /// </summary>
-    public bool BeginFrame() { return true; }
+    #region Frame Lifecycle & Render Target Control
 
-    /// <summary>
-    /// Clears the active render targets and depth-stencil buffer.
-    /// </summary>
+    /// <inheritdoc />
+    public bool BeginFrame()
+    {
+        _imContext.ClearRenderTargetView(_renderTargetView, ClearColor);
+        _imContext.ClearDepthStencilView(_depthStencilView, DepthStencilClearFlags.Depth | DepthStencilClearFlags.Stencil, 1.0f, 0);
+
+        //_imContext.OMSetRenderTargets(_renderTargetView, _depthStencilView);
+        //_imContext.RSSetViewport(0, 0, Size.Width, Size.Height, 0.0f, 1.0f);
+
+        return true;
+    }
+
+    /// <inheritdoc />
     public void Clear(in Color4 color, ClearFlags flags = ClearFlags.All, float depth = 1.0f, byte stencil = 0) { }
 
-    /// <summary>
-    /// Submits recorded commands to the GPU queue and presents the swap chain image.
-    /// </summary>
-    public bool EndFrame() { return true; }
+    /// <inheritdoc />
+    public bool EndFrame()
+    {
+        PresentFlags presentFlags = PresentFlags.None;
+        uint syncInterval = 0u;
 
-    /// <summary>
-    /// Blocks the calling thread until all submitted GPU work has finished executing.
-    /// </summary>
-    public void WaitIdle() { }
+        if (VSync)
+        {
+            syncInterval = 1u;
+        }
+        else if (_tearingSupported)
+        {
+            presentFlags |= PresentFlags.AllowTearing;
+        }
 
-    // ========================================================================
-    // Resource Creation & Binding
-    // ========================================================================
+        //_swapChain.Present(1u, PresentFlags.AllowTearing);
+        _swapChain.Present(syncInterval, presentFlags);
+        FlushDebugMessages();
+        return true;
+    }
 
-    /// <summary>
-    /// Binds a vertex buffer to the input assembler stage.
-    /// </summary>
+    /// <inheritdoc />
+    public void WaitIdle()
+    {
+        _imContext.Flush();
+    }
+
+    #endregion
+
+    #region Resource Creation & Binding
+
+    /// <inheritdoc />
+    public IBuffer CreateBuffer<T>(ReadOnlySpan<T> data, BufferUsage usage, bool isDynamic = false)
+        where T : unmanaged
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public IBuffer CreateBuffer(uint sizeInBytes, BufferUsage usage, bool isDynamic = false)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
     public void SetVertexBuffer(IBuffer buffer, uint stride, uint slot = 0, uint offsetInBytes = 0) { }
 
-    /// <summary>
-    /// Binds an index buffer to the input assembler stage.
-    /// </summary>
+    /// <inheritdoc />
     public void SetIndexBuffer(IBuffer buffer, IndexFormat format = IndexFormat.UInt32, uint offsetInBytes = 0) { }
 
-    // ========================================================================
-    // Drawing Commands (Direct, Instanced, Indirect)
-    // ========================================================================
+    #endregion
 
-    /// <summary>
-    /// Draws non-indexed, non-instanced primitives.
-    /// </summary>
+    #region Drawing Commands (Direct, Instanced, Indirect)
+
+    /// <inheritdoc />
     public void Draw(uint vertexCount, uint startVertexLocation = 0) { }
 
-    /// <summary>
-    /// Draws indexed, non-instanced primitives.
-    /// </summary>
+    /// <inheritdoc />
     public void DrawIndexed(uint indexCount, uint startIndexLocation = 0, int baseVertexLocation = 0) { }
 
-    /// <summary>
-    /// Draws non-indexed, instanced primitives.
-    /// </summary>
+    /// <inheritdoc />
     public void DrawInstanced(
         uint vertexCountPerInstance,
         uint instanceCount,
@@ -141,9 +333,7 @@ public sealed class GraphicsDevice : IGraphicsDevice
         uint startInstanceLocation = 0)
     { }
 
-    /// <summary>
-    /// Draws indexed, instanced primitives.
-    /// </summary>
+    /// <inheritdoc />
     public void DrawIndexedInstanced(
         uint indexCountPerInstance,
         uint instanceCount,
@@ -152,37 +342,161 @@ public sealed class GraphicsDevice : IGraphicsDevice
         uint startInstanceLocation = 0)
     { }
 
-    /// <summary>
-    /// Draws non-indexed primitives with parameters generated on the GPU in an indirect arguments buffer.
-    /// </summary>
+    /// <inheritdoc />
     public void DrawIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
 
-    /// <summary>
-    /// Draws indexed primitives with parameters generated on the GPU in an indirect arguments buffer.
-    /// </summary>
+    /// <inheritdoc />
     public void DrawIndexedIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
 
-    // ========================================================================
-    // Compute Commands
-    // ========================================================================
+    #endregion
 
-    /// <summary>
-    /// Executes a compute shader using the specified thread group counts.
-    /// </summary>
+    #region Compute Commands
+
+    /// <inheritdoc />
     public void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1) { }
 
-    /// <summary>
-    /// Executes a compute shader with thread group counts generated on the GPU in an indirect arguments buffer.
-    /// </summary>
+    /// <inheritdoc />
     public void DispatchIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
+
+    #endregion
+
+    #region Disposing
 
     private bool _disposed = false;
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed)
             return;
 
+        _depthStencilView?.Dispose();
+        _depthStencilBuffer?.Dispose();
+        _renderTargetView?.Dispose();
+        _rtvBackBuffer?.Dispose();
+
+        if (_imContext != null)
+        {
+            _imContext.ClearState();
+            _imContext.Flush();
+            _imContext.Dispose();
+        }
+
+        _swapChain?.Dispose();
+
+#if DEBUG
+        if (_device != null)
+        {
+            using (ID3D11Debug? d3d11Debug = _device.QueryInterfaceOrNull<ID3D11Debug>())
+            {
+                d3d11Debug?.ReportLiveDeviceObjects(ReportLiveDeviceObjectFlags.Detail | ReportLiveDeviceObjectFlags.IgnoreInternal);
+            }
+            FlushDebugMessages();
+            _infoQueue?.Dispose();
+        }
+#endif
+
+        _device?.Dispose();
+        _factory?.Dispose();
+
+#if DEBUG
+        if (DXGIGetDebugInterface1(out IDXGIDebug1? dxgiDebug).Success && dxgiDebug != null)
+        {
+            if (DXGIGetDebugInterface1(out IDXGIInfoQueue? dxgiInfoQueue).Success && dxgiInfoQueue != null)
+            {
+                dxgiInfoQueue.ClearStoredMessages(DebugAll);
+                dxgiDebug.ReportLiveObjects(DebugAll, ReportLiveObjectFlags.Detail | ReportLiveObjectFlags.IgnoreInternal);
+
+                ulong count = dxgiInfoQueue.GetNumStoredMessages(DebugAll);
+                for (ulong i = 0; i < count; i++)
+                {
+                    InfoQueueMessage msg = dxgiInfoQueue.GetMessage(DebugAll, i);
+                    Console.WriteLine($"[DXGI {msg.Severity}] ({msg.Id}): {msg.Description}");
+                }
+                dxgiInfoQueue.Dispose();
+            }
+            dxgiDebug.Dispose();
+        }
+#endif
+
         _disposed = true;
     }
+
+    #endregion
+
+    #region Private
+
+    private IDXGIAdapter1 GetHardwareAdapter()
+    {
+        for (uint adapterIndex = 0;
+                _factory.EnumAdapterByGpuPreference(adapterIndex, GpuPreference.HighPerformance, out IDXGIAdapter1? adapter).Success;
+                adapterIndex++)
+        {
+            if (adapter == null)
+            {
+                continue;
+            }
+
+            AdapterDescription1 desc = adapter.Description1;
+
+            if ((desc.Flags & AdapterFlags.Software) != AdapterFlags.None)
+            {
+                adapter.Dispose();
+                continue;
+            }
+
+            return adapter;
+        }
+
+        for (uint adapterIndex = 0;
+            _factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1? adapter).Success;
+            adapterIndex++)
+        {
+            AdapterDescription1 desc = adapter.Description1;
+
+            if ((desc.Flags & AdapterFlags.Software) != AdapterFlags.None)
+            {
+                adapter.Dispose();
+                continue;
+            }
+
+            return adapter;
+        }
+
+        throw new InvalidOperationException("Cannot detect Direct3D11 adapter.");
+    }
+
+    private void UpdateColorSpace()
+    {
+        // TBD:
+    }
+
+    [System.Diagnostics.Conditional("DEBUG")]
+    private void FlushDebugMessages()
+    {
+#if DEBUG
+        if (_infoQueue == null || _infoQueue.NativePointer == nint.Zero)
+        {
+            return;
+        }
+
+        ulong count = _infoQueue.NumStoredMessages;
+        for (ulong i = 0; i < count; i++)
+        {
+            Message msg = _infoQueue.GetMessage(i);
+            ConsoleColor prevColor = Console.ForegroundColor;
+            Console.ForegroundColor = msg.Severity switch
+            {
+                MessageSeverity.Corruption or MessageSeverity.Error => ConsoleColor.Red,
+                MessageSeverity.Warning => ConsoleColor.Yellow,
+                _ => ConsoleColor.Gray
+            };
+            Console.WriteLine($"[D3D11 {msg.Severity}] ({msg.Id}): {msg.Description}");
+            Console.ForegroundColor = prevColor;
+        }
+        _infoQueue.ClearStoredMessages();
+#endif
+    }
+
+    #endregion
 }

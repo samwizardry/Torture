@@ -20,21 +20,21 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Gets or sets the active viewport.
     /// </summary>
-    Viewport Viewport { get; set; }
+    //Viewport Viewport { get; set; }
 
     /// <summary>
     /// Gets or sets the active scissor rectangle.
     /// </summary>
-    RectI ScissorRect { get; set; }
+    //RectI ScissorRect { get; set; }
 
     /// <summary>
     /// Gets or sets whether vertical synchronization (VSync) is enabled.
     /// </summary>
     bool VSync { get; set; }
 
-    // ========================================================================
-    // Window & Display State Notifications
-    // ========================================================================
+    Color4 ClearColor { get; set; }
+
+    #region Window & Display State Notifications
 
     /// <summary>
     /// Resizes the swap chain and size-dependent back buffers when the window pixel size changes.
@@ -61,9 +61,9 @@ public interface IGraphicsDevice : IDisposable
     /// </summary>
     void OnRestored();
 
-    // ========================================================================
-    // Frame Lifecycle & Render Target Control
-    // ========================================================================
+    #endregion
+
+    #region Frame Lifecycle & Render Target Control
 
     /// <summary>
     /// Acquires the next swap chain image and prepares the command context for recording a frame.
@@ -85,9 +85,20 @@ public interface IGraphicsDevice : IDisposable
     /// </summary>
     void WaitIdle();
 
-    // ========================================================================
-    // Resource Creation & Binding
-    // ========================================================================
+    #endregion
+
+    #region Resource Creation & Binding
+
+    /// <summary>
+    /// Creates a GPU buffer and initializes it with the provided span of unmanaged structs.
+    /// </summary>
+    IBuffer CreateBuffer<T>(ReadOnlySpan<T> data, BufferUsage usage, bool isDynamic = false)
+        where T : unmanaged;
+
+    /// <summary>
+    /// Creates an uninitialized GPU buffer of the specified size in bytes.
+    /// </summary>
+    IBuffer CreateBuffer(uint sizeInBytes, BufferUsage usage, bool isDynamic = false);
 
     /// <summary>
     /// Binds a vertex buffer to the input assembler stage.
@@ -99,9 +110,9 @@ public interface IGraphicsDevice : IDisposable
     /// </summary>
     void SetIndexBuffer(IBuffer buffer, IndexFormat format = IndexFormat.UInt32, uint offsetInBytes = 0);
 
-    // ========================================================================
-    // Drawing Commands (Direct, Instanced, Indirect)
-    // ========================================================================
+    #endregion
+
+    #region Drawing Commands (Direct, Instanced, Indirect)
 
     /// <summary>
     /// Draws non-indexed, non-instanced primitives.
@@ -142,9 +153,9 @@ public interface IGraphicsDevice : IDisposable
     /// </summary>
     void DrawIndexedIndirect(IBuffer buffer, uint alignedByteOffset = 0);
 
-    // ========================================================================
-    // Compute Commands
-    // ========================================================================
+    #endregion
+
+    #region Compute Commands
 
     /// <summary>
     /// Executes a compute shader using the specified thread group counts.
@@ -155,4 +166,6 @@ public interface IGraphicsDevice : IDisposable
     /// Executes a compute shader with thread group counts generated on the GPU in an indirect arguments buffer.
     /// </summary>
     void DispatchIndirect(IBuffer buffer, uint alignedByteOffset = 0);
+
+    #endregion
 }

@@ -19,11 +19,12 @@ public sealed partial class Luna : Application<Luna>
         Identifier = "Semisoft.Luna";
         PreferredWindowSize = new SizeI(1280, 720);
         WindowMode = WindowMode.Windowed;
-        IsResizable = true;
     }
 
     protected override void Initialize()
     {
+        GraphicsDevice.VSync = true;
+        GraphicsDevice.ClearColor = new Color4(0.2f, 0.3f, 0.3f, 1.0f);
         base.Initialize();
     }
 
@@ -33,8 +34,6 @@ public sealed partial class Luna : Application<Luna>
 
     protected override void Update(GameTime gameTime)
     {
-        Task.Delay(16).ConfigureAwait(false).GetAwaiter().GetResult();
-
         if (Keyboard.IsKeyPressed(KeyboardKey.Escape))
         {
             Exit();
@@ -43,7 +42,7 @@ public sealed partial class Luna : Application<Luna>
         var deltaPos = Mouse.Delta;
         var pos = Mouse.Position;
 
-        Console.WriteLine($"pos ({pos.X}, {pos.Y})\tdelta({deltaPos.X}, {deltaPos.Y})");
+        //Console.WriteLine($"pos ({pos.X}, {pos.Y})\tdelta({deltaPos.X}, {deltaPos.Y})");
 
         if (_showFpsInTitle)
         {
@@ -86,8 +85,7 @@ public sealed partial class Luna : Application<Luna>
         {
 #if SUPPORT_DIRECTX
             GraphicsBackend.Direct3D11
-                //=> new D3D11GraphicsDevice(window.Win32Hwnd, window.Size, window.Bounds),
-                => new Torture.Graphics.Direct3D11.GraphicsDevice(),
+                => new Torture.Graphics.Direct3D11.GraphicsDevice(window.Win32Hwnd, window.Size),
 #endif
 #if SUPPORT_VULKAN
             //GraphicsBackend.Vulkan

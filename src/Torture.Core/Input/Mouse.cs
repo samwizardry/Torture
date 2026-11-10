@@ -21,50 +21,50 @@ public enum MouseButton : uint
 
 public static class Mouse
 {
-    private static nint _window;
-    private static MouseButton _buttons;
-    private static MouseButton _lastButtons;
-    private static Vector2 _position;
-    private static Vector2 _lastPosition;
-    private static Vector2 _delta;
-    private static Vector2 _rawScroll;
-    private static Vector2 _lastRawScroll;
-    private static Vector2 _scrollDelta;
+    private static nint s_window;
+    private static MouseButton s_buttons;
+    private static MouseButton s_lastButtons;
+    private static Vector2 s_position;
+    private static Vector2 s_lastPosition;
+    private static Vector2 s_delta;
+    private static Vector2 s_rawScroll;
+    private static Vector2 s_lastRawScroll;
+    private static Vector2 s_scrollDelta;
 
     /// <summary>
     /// Gets the current cursor position in window coordinates.
     /// </summary>
-    public static Vector2 Position => _position;
+    public static Vector2 Position => s_position;
 
     /// <summary>
     /// Gets the cursor movement delta since the previous frame.
     /// </summary>
-    public static Vector2 Delta => _delta;
+    public static Vector2 Delta => s_delta;
 
     /// <summary>
     /// Gets the mouse wheel scroll delta (X = horizontal, Y = vertical) for the current frame.
     /// </summary>
-    public static Vector2 ScrollDelta => _scrollDelta;
+    public static Vector2 ScrollDelta => s_scrollDelta;
 
     /// <summary>
     /// Gets the vertical mouse wheel scroll delta for the current frame.
     /// </summary>
-    public static float ScrollY => _scrollDelta.Y;
+    public static float ScrollY => s_scrollDelta.Y;
 
     /// <summary>
     /// Gets or sets whether relative mouse mode (cursor locked and hidden for 3D camera look) is enabled.
     /// </summary>
     public static bool IsRelativeMode
     {
-        get => _window != IntPtr.Zero && SDL.GetWindowRelativeMouseMode(_window);
+        get => s_window != IntPtr.Zero && SDL.GetWindowRelativeMouseMode(s_window);
         set
         {
-            if (_window != IntPtr.Zero)
+            if (s_window != IntPtr.Zero)
             {
-                SDL.SetWindowRelativeMouseMode(_window, value);
+                SDL.SetWindowRelativeMouseMode(s_window, value);
                 // Reset accumulated delta mouse position
                 SDL.GetRelativeMouseState(out _, out _);
-                _delta = Vector2.Zero;
+                s_delta = Vector2.Zero;
             }
         }
     }
@@ -90,44 +90,44 @@ public static class Mouse
 
     internal static void Initialize(nint window)
     {
-        _window = window;
-        _buttons = (MouseButton)SDL.GetMouseState(out float x, out float y);
-        _lastButtons = _buttons;
-        _position = new Vector2(x, y);
-        _lastPosition = _position;
-        _delta = Vector2.Zero;
-        _rawScroll = Vector2.Zero;
-        _lastRawScroll = Vector2.Zero;
-        _scrollDelta = Vector2.Zero;
+        s_window = window;
+        s_buttons = (MouseButton)SDL.GetMouseState(out float x, out float y);
+        s_lastButtons = s_buttons;
+        s_position = new Vector2(x, y);
+        s_lastPosition = s_position;
+        s_delta = Vector2.Zero;
+        s_rawScroll = Vector2.Zero;
+        s_lastRawScroll = Vector2.Zero;
+        s_scrollDelta = Vector2.Zero;
     }
 
     internal static void Update()
     {
-        _lastButtons = _buttons;
-        _lastPosition = _position;
-        _buttons = (MouseButton)SDL.GetMouseState(out float x, out float y);
-        _position = new Vector2(x, y);
+        s_lastButtons = s_buttons;
+        s_lastPosition = s_position;
+        s_buttons = (MouseButton)SDL.GetMouseState(out float x, out float y);
+        s_position = new Vector2(x, y);
         if (IsRelativeMode)
         {
             SDL.GetRelativeMouseState(out float relX, out float relY);
-            _delta = new Vector2(relX, relY);
+            s_delta = new Vector2(relX, relY);
         }
         else
         {
-            _delta = _position - _lastPosition;
+            s_delta = s_position - s_lastPosition;
         }
-        _scrollDelta = _rawScroll - _lastRawScroll;
-        _lastRawScroll = _rawScroll;
+        s_scrollDelta = s_rawScroll - s_lastRawScroll;
+        s_lastRawScroll = s_rawScroll;
     }
 
     internal static void Shutdown()
     {
-        _window = IntPtr.Zero;
+        s_window = IntPtr.Zero;
     }
 
     internal static void OnScrollWheel(float scrollX, float scrollY)
     {
-        _rawScroll += new Vector2(scrollX, scrollY);
+        s_rawScroll += new Vector2(scrollX, scrollY);
     }
 
     /// <summary>
@@ -135,22 +135,22 @@ public static class Mouse
     /// </summary>
     public static void SetPosition(float x, float y)
     {
-        if (_window != IntPtr.Zero)
+        if (s_window != IntPtr.Zero)
         {
-            SDL.WarpMouseInWindow(_window, x, y);
-            _position = new Vector2(x, y);
+            SDL.WarpMouseInWindow(s_window, x, y);
+            s_position = new Vector2(x, y);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsButtonDown(MouseButton button) => (_buttons & button) != 0;
+    public static bool IsButtonDown(MouseButton button) => (s_buttons & button) != 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsButtonUp(MouseButton button) => (_buttons & button) == 0;
+    public static bool IsButtonUp(MouseButton button) => (s_buttons & button) == 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsButtonPressed(MouseButton button) => (_lastButtons & button) == 0 && (_buttons & button) != 0;
+    public static bool IsButtonPressed(MouseButton button) => (s_lastButtons & button) == 0 && (s_buttons & button) != 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsButtonReleased(MouseButton button) => (_lastButtons & button) != 0 && (_buttons & button) == 0;
+    public static bool IsButtonReleased(MouseButton button) => (s_lastButtons & button) != 0 && (s_buttons & button) == 0;
 }
