@@ -8,6 +8,7 @@
     <PackageVersion Include="Vortice.Mathematics" Version="2.1.1" />
   </ItemGroup>
   <ItemGroup Condition="'$(TortureTargetOS)' == 'Windows'">
+    <PackageVersion Include="ImGui.NET" Version="1.91.6.1" />
     <PackageVersion Include="SDL3-CS.Windows" Version="3.4.20" />
     <PackageVersion Include="Vortice.D3DCompiler" Version="3.8.3" />
     <PackageVersion Include="Vortice.Direct3D11" Version="3.8.3" />
