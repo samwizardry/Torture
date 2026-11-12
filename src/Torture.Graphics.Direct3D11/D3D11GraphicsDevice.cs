@@ -1,7 +1,4 @@
-﻿using Torture.Core;
-using Torture.Core.Graphics;
-
-using Vortice.Direct3D;
+﻿using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Direct3D11.Debug;
 using Vortice.DXGI;
@@ -14,7 +11,7 @@ using static Vortice.DXGI.DXGI;
 namespace Torture.Graphics.Direct3D11;
 
 /// <inheritdoc />
-public sealed class GraphicsDevice : IGraphicsDevice
+public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
 {
     private static readonly FeatureLevel[] FeatureLevels = [
         FeatureLevel.Level_11_1,
@@ -39,7 +36,7 @@ public sealed class GraphicsDevice : IGraphicsDevice
     private ID3D11Texture2D _depthStencilBuffer = null!;
     private ID3D11DepthStencilView _depthStencilView = null!;
 
-    public GraphicsDevice(nint hwnd, SizeI size, Format colorFormat = Format.B8G8R8A8_UNorm, Format depthStencilFormat = Format.D24_UNorm_S8_UInt)
+    public D3D11GraphicsDevice(nint hwnd, SizeI size, Format colorFormat = Format.B8G8R8A8_UNorm, Format depthStencilFormat = Format.D24_UNorm_S8_UInt)
     {
         try
         {
@@ -121,12 +118,11 @@ public sealed class GraphicsDevice : IGraphicsDevice
 
                 if (!FeatureLevels.Contains(featureLevel))
                 {
-                    throw new InvalidOperationException("Direct3D Feature Level 11 unsupported.");
+                    throw new NotSupportedException("Direct3D Feature Level 11 not supported.");
                 }
             }
 
 #if DEBUG
-            // TODO: QueryInterfaceOrNull
             _infoQueue = _device.QueryInterfaceOrNull<ID3D11InfoQueue>();
             if (_infoQueue != null)
             {
@@ -181,29 +177,31 @@ public sealed class GraphicsDevice : IGraphicsDevice
     }
 
     /// <inheritdoc />
-    public GraphicsBackend Backend { get; } = GraphicsBackend.Direct3D11;
+    public override Core.Graphics.GraphicsAPI Backend => Core.Graphics.GraphicsAPI.D3D11;
 
     /// <inheritdoc />
-    public SizeI Size { get; private set; }
+    public override SizeI Size { get; protected set; }
 
     /// <inheritdoc />
-    //public Viewport Viewport { get; set; }
+    public override Viewport Viewport { get; protected set; }
 
     /// <inheritdoc />
-    //public RectI ScissorRect { get; set; }
+    public override RectI ScissorRect { get; protected set; }
 
     /// <inheritdoc />
-    public bool VSync { get; set; }
+    public override bool VSync { get; set; }
 
     /// <inheritdoc />
-    public Color4 ClearColor { get; set; } = Colors.CornflowerBlue;
+    public override Color4 ClearColor { get; set; } = Colors.CornflowerBlue;
 
     #region Window & Display State Notifications
 
     /// <inheritdoc />
-    public void OnResize(int width, int height)
+    public override void OnResize(int width, int height)
     {
         Size = new SizeI(width, height);
+        Viewport = new Viewport(width, height);
+        ScissorRect = new RectI(width, height);
 
         _imContext.OMSetRenderTargets((ID3D11RenderTargetView)null!);
 
@@ -235,38 +233,54 @@ public sealed class GraphicsDevice : IGraphicsDevice
     }
 
     /// <inheritdoc />
-    public void OnWindowMoved(RectI bounds) { }
+    public override void OnWindowMoved(RectI bounds) { }
 
     /// <inheritdoc />
-    public void OnWindowModeChanged(WindowMode mode) { }
+    public override void OnWindowModeChanged(Core.WindowMode mode) { }
 
     /// <inheritdoc />
-    public void OnMinimized() { }
+    public override void OnMinimized() { }
 
     /// <inheritdoc />
-    public void OnRestored() { }
+    public override void OnRestored() { }
 
     #endregion
 
     #region Frame Lifecycle & Render Target Control
 
     /// <inheritdoc />
-    public bool BeginFrame()
+    public override bool BeginFrame()
     {
         _imContext.ClearRenderTargetView(_renderTargetView, ClearColor);
         _imContext.ClearDepthStencilView(_depthStencilView, DepthStencilClearFlags.Depth | DepthStencilClearFlags.Stencil, 1.0f, 0);
 
-        //_imContext.OMSetRenderTargets(_renderTargetView, _depthStencilView);
-        //_imContext.RSSetViewport(0, 0, Size.Width, Size.Height, 0.0f, 1.0f);
+        _imContext.OMSetRenderTargets(_renderTargetView, _depthStencilView);
+        _imContext.RSSetViewport(Viewport);
+        _imContext.RSSetScissorRect(ScissorRect);
 
         return true;
     }
 
     /// <inheritdoc />
-    public void Clear(in Color4 color, ClearFlags flags = ClearFlags.All, float depth = 1.0f, byte stencil = 0) { }
+    public override void Clear(in Color4 color, Core.Graphics.ClearFlags flags = Core.Graphics.ClearFlags.All, float depth = 1.0f, byte stencil = 0)
+    {
+        if ((flags & Core.Graphics.ClearFlags.Target) == Core.Graphics.ClearFlags.Target)
+        {
+            _imContext.ClearRenderTargetView(_renderTargetView, color);
+        }
+
+        DepthStencilClearFlags dsClearFlags = DepthStencilClearFlags.None;
+        if ((flags & Core.Graphics.ClearFlags.Depth) == Core.Graphics.ClearFlags.Depth) dsClearFlags |= DepthStencilClearFlags.Depth;
+        if ((flags & Core.Graphics.ClearFlags.Stencil) == Core.Graphics.ClearFlags.Stencil) dsClearFlags |= DepthStencilClearFlags.Stencil;
+
+        if (dsClearFlags != DepthStencilClearFlags.None)
+        {
+            _imContext.ClearDepthStencilView(_depthStencilView, dsClearFlags, depth, stencil);
+        }
+    }
 
     /// <inheritdoc />
-    public bool EndFrame()
+    public override bool EndFrame()
     {
         PresentFlags presentFlags = PresentFlags.None;
         uint syncInterval = 0u;
@@ -280,14 +294,14 @@ public sealed class GraphicsDevice : IGraphicsDevice
             presentFlags |= PresentFlags.AllowTearing;
         }
 
-        //_swapChain.Present(1u, PresentFlags.AllowTearing);
-        _swapChain.Present(syncInterval, presentFlags);
+        var result = _swapChain.Present(syncInterval, presentFlags);
         FlushDebugMessages();
+        result.CheckError();
         return true;
     }
 
     /// <inheritdoc />
-    public void WaitIdle()
+    public override void WaitIdle()
     {
         _imContext.Flush();
     }
@@ -297,36 +311,85 @@ public sealed class GraphicsDevice : IGraphicsDevice
     #region Resource Creation & Binding
 
     /// <inheritdoc />
-    public IBuffer CreateBuffer<T>(ReadOnlySpan<T> data, BufferUsage usage, bool isDynamic = false)
-        where T : unmanaged
+    public override Core.Graphics.Buffer CreateBuffer<T>(ReadOnlySpan<T> data, in Core.Graphics.BufferDescription description)
     {
-        throw new NotImplementedException();
+        return D3D11Buffer.Create(_device, data, description);
     }
 
     /// <inheritdoc />
-    public IBuffer CreateBuffer(uint sizeInBytes, BufferUsage usage, bool isDynamic = false)
+    public override Core.Graphics.Buffer CreateBuffer(in Core.Graphics.BufferDescription description)
     {
-        throw new NotImplementedException();
+        return D3D11Buffer.Create(_device, description);
     }
 
     /// <inheritdoc />
-    public void SetVertexBuffer(IBuffer buffer, uint stride, uint slot = 0, uint offsetInBytes = 0) { }
+    public override Core.Graphics.Shader CreateShader(in Core.Graphics.ShaderDescription description)
+    {
+        return new D3D11Shader(_device, description);
+    }
 
     /// <inheritdoc />
-    public void SetIndexBuffer(IBuffer buffer, IndexFormat format = IndexFormat.UInt32, uint offsetInBytes = 0) { }
+    public override Core.Graphics.InputLayout CreateInputLayout(in Core.Graphics.VertexLayout description, Core.Graphics.Shader shader)
+    {
+        return new D3D11InputLayout(_device, description, (D3D11Shader)shader);
+    }
+
+    /// <inheritdoc />
+    public override void SetVertexBuffer(Core.Graphics.Buffer buffer, uint stride, uint slot = 0, uint offset = 0)
+    {
+        var b = (D3D11Buffer)buffer;
+        _imContext.IASetVertexBuffer(slot, b.Native, stride, offset);
+    }
+
+    /// <inheritdoc />
+    public override void SetIndexBuffer(Core.Graphics.Buffer buffer, Core.Graphics.IndexFormat format = Core.Graphics.IndexFormat.UInt32, uint offset = 0)
+    {
+        var b = (D3D11Buffer)buffer;
+        _imContext.IASetIndexBuffer(b.Native, format.ToDXGIFormat(), offset);
+    }
+
+    /// <inheritdoc />
+    public override void SetVertexShader(Core.Graphics.Shader shader)
+    {
+        _imContext.VSSetShader((ID3D11VertexShader)((D3D11Shader)shader).Native);
+    }
+
+    /// <inheritdoc />
+    public override void SetPixelShader(Core.Graphics.Shader shader)
+    {
+        _imContext.PSSetShader((ID3D11PixelShader)((D3D11Shader)shader).Native);
+    }
+
+    /// <inheritdoc />
+    public override void SetInputLayout(Core.Graphics.InputLayout inputLayout)
+    {
+        _imContext.IASetInputLayout(((D3D11InputLayout)inputLayout).Native);
+    }
+
+    /// <inheritdoc />
+    public override void SetPrimitiveTopology(Core.Graphics.PrimitiveTopology primitiveTopology)
+    {
+        _imContext.IASetPrimitiveTopology(primitiveTopology.ToD3D11PrimitiveTopology());
+    }
 
     #endregion
 
     #region Drawing Commands (Direct, Instanced, Indirect)
 
     /// <inheritdoc />
-    public void Draw(uint vertexCount, uint startVertexLocation = 0) { }
+    public override void Draw(uint vertexCount, uint startVertexLocation = 0)
+    {
+        _imContext.Draw(vertexCount, startVertexLocation);
+    }
 
     /// <inheritdoc />
-    public void DrawIndexed(uint indexCount, uint startIndexLocation = 0, int baseVertexLocation = 0) { }
+    public override void DrawIndexed(uint indexCount, uint startIndexLocation = 0, int baseVertexLocation = 0)
+    {
+        _imContext.DrawIndexed(indexCount, startIndexLocation, baseVertexLocation);
+    }
 
     /// <inheritdoc />
-    public void DrawInstanced(
+    public override void DrawInstanced(
         uint vertexCountPerInstance,
         uint instanceCount,
         uint startVertexLocation = 0,
@@ -334,7 +397,7 @@ public sealed class GraphicsDevice : IGraphicsDevice
     { }
 
     /// <inheritdoc />
-    public void DrawIndexedInstanced(
+    public override void DrawIndexedInstanced(
         uint indexCountPerInstance,
         uint instanceCount,
         uint startIndexLocation = 0,
@@ -343,29 +406,31 @@ public sealed class GraphicsDevice : IGraphicsDevice
     { }
 
     /// <inheritdoc />
-    public void DrawIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
+    public override void DrawIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0)
+    {
+    }
 
     /// <inheritdoc />
-    public void DrawIndexedIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
+    public override void DrawIndexedIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0)
+    {
+    }
 
     #endregion
 
     #region Compute Commands
 
     /// <inheritdoc />
-    public void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1) { }
+    public override void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1) { }
 
     /// <inheritdoc />
-    public void DispatchIndirect(IBuffer buffer, uint alignedByteOffset = 0) { }
+    public override void DispatchIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0) { }
 
     #endregion
 
     #region Disposing
 
-    private bool _disposed = false;
-
     /// <inheritdoc />
-    public void Dispose()
+    public override void Dispose()
     {
         if (_disposed)
             return;
@@ -375,7 +440,7 @@ public sealed class GraphicsDevice : IGraphicsDevice
         _renderTargetView?.Dispose();
         _rtvBackBuffer?.Dispose();
 
-        if (_imContext != null)
+        if (_imContext != null && _imContext.NativePointer != IntPtr.Zero)
         {
             _imContext.ClearState();
             _imContext.Flush();
@@ -387,13 +452,15 @@ public sealed class GraphicsDevice : IGraphicsDevice
 #if DEBUG
         if (_device != null)
         {
-            using (ID3D11Debug? d3d11Debug = _device.QueryInterfaceOrNull<ID3D11Debug>())
+            if (_device.QueryInterfaceOrNull<ID3D11Debug>() is ID3D11Debug d3d11Debug)
             {
-                d3d11Debug?.ReportLiveDeviceObjects(ReportLiveDeviceObjectFlags.Detail | ReportLiveDeviceObjectFlags.IgnoreInternal);
+                d3d11Debug.ReportLiveDeviceObjects(ReportLiveDeviceObjectFlags.Detail | ReportLiveDeviceObjectFlags.IgnoreInternal);
+                FlushDebugMessages();
+                d3d11Debug.Dispose();
             }
-            FlushDebugMessages();
-            _infoQueue?.Dispose();
         }
+
+        _infoQueue?.Dispose();
 #endif
 
         _device?.Dispose();
@@ -437,9 +504,7 @@ public sealed class GraphicsDevice : IGraphicsDevice
                 continue;
             }
 
-            AdapterDescription1 desc = adapter.Description1;
-
-            if ((desc.Flags & AdapterFlags.Software) != AdapterFlags.None)
+            if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
             {
                 adapter.Dispose();
                 continue;
@@ -452,9 +517,7 @@ public sealed class GraphicsDevice : IGraphicsDevice
             _factory.EnumAdapters1(adapterIndex, out IDXGIAdapter1? adapter).Success;
             adapterIndex++)
         {
-            AdapterDescription1 desc = adapter.Description1;
-
-            if ((desc.Flags & AdapterFlags.Software) != AdapterFlags.None)
+            if ((adapter.Description1.Flags & AdapterFlags.Software) != AdapterFlags.None)
             {
                 adapter.Dispose();
                 continue;

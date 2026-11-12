@@ -5,61 +5,61 @@ namespace Torture.Core.Graphics;
 /// <summary>
 /// Represents a low-level graphics device abstraction supporting modern rendering and compute pipelines.
 /// </summary>
-public interface IGraphicsDevice : IDisposable
+public abstract class GraphicsDevice : IDisposable
 {
     /// <summary>
     /// Gets the active graphics backend type.
     /// </summary>
-    GraphicsBackend Backend { get; }
+    public virtual GraphicsAPI Backend { get; }
 
     /// <summary>
     /// Gets the current render target size in pixels.
     /// </summary>
-    SizeI Size { get; }
+    public virtual SizeI Size { get; protected set; }
 
     /// <summary>
     /// Gets or sets the active viewport.
     /// </summary>
-    //Viewport Viewport { get; set; }
+    public virtual Viewport Viewport { get; protected set; }
 
     /// <summary>
     /// Gets or sets the active scissor rectangle.
     /// </summary>
-    //RectI ScissorRect { get; set; }
+    public virtual RectI ScissorRect { get; protected set; }
 
     /// <summary>
     /// Gets or sets whether vertical synchronization (VSync) is enabled.
     /// </summary>
-    bool VSync { get; set; }
+    public virtual bool VSync { get; set; }
 
-    Color4 ClearColor { get; set; }
+    public virtual Color4 ClearColor { get; set; }
 
     #region Window & Display State Notifications
 
     /// <summary>
     /// Resizes the swap chain and size-dependent back buffers when the window pixel size changes.
     /// </summary>
-    void OnResize(int width, int height);
+    public abstract void OnResize(int width, int height);
 
     /// <summary>
     /// Notifies the device that the window moved to new desktop coordinates (used to update HDR/ColorSpace).
     /// </summary>
-    void OnWindowMoved(RectI bounds);
+    public abstract void OnWindowMoved(RectI bounds);
 
     /// <summary>
     /// Notifies the device that the window display mode changed (Windowed, BorderlessFullscreen, or Fullscreen).
     /// </summary>
-    void OnWindowModeChanged(WindowMode mode);
+    public abstract void OnWindowModeChanged(WindowMode mode);
 
     /// <summary>
     /// Notifies the device that the window was minimized, allowing driver resource trimming or suspension.
     /// </summary>
-    void OnMinimized();
+    public abstract void OnMinimized();
 
     /// <summary>
     /// Notifies the device that the window was restored from a minimized state.
     /// </summary>
-    void OnRestored();
+    public abstract void OnRestored();
 
     #endregion
 
@@ -68,22 +68,22 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Acquires the next swap chain image and prepares the command context for recording a frame.
     /// </summary>
-    bool BeginFrame();
+    public abstract bool BeginFrame();
 
     /// <summary>
     /// Clears the active render targets and depth-stencil buffer.
     /// </summary>
-    void Clear(in Color4 color, ClearFlags flags = ClearFlags.All, float depth = 1.0f, byte stencil = 0);
+    public abstract void Clear(in Color4 color, ClearFlags flags = ClearFlags.All, float depth = 1.0f, byte stencil = 0);
 
     /// <summary>
     /// Submits recorded commands to the GPU queue and presents the swap chain image.
     /// </summary>
-    bool EndFrame();
+    public abstract bool EndFrame();
 
     /// <summary>
     /// Blocks the calling thread until all submitted GPU work has finished executing.
     /// </summary>
-    void WaitIdle();
+    public abstract void WaitIdle();
 
     #endregion
 
@@ -92,23 +92,64 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Creates a GPU buffer and initializes it with the provided span of unmanaged structs.
     /// </summary>
-    IBuffer CreateBuffer<T>(ReadOnlySpan<T> data, BufferUsage usage, bool isDynamic = false)
+    public abstract Buffer CreateBuffer<T>(ReadOnlySpan<T> data, in BufferDescription description)
         where T : unmanaged;
 
     /// <summary>
-    /// Creates an uninitialized GPU buffer of the specified size in bytes.
+    /// TBD:
     /// </summary>
-    IBuffer CreateBuffer(uint sizeInBytes, BufferUsage usage, bool isDynamic = false);
+    public abstract Buffer CreateBuffer(in BufferDescription description);
+
+    /// <summary>
+    /// TBD:
+    /// </summary>
+    public abstract Shader CreateShader(in ShaderDescription description);
+
+    /// <summary>
+    /// TBD:
+    /// </summary>
+    public abstract InputLayout CreateInputLayout(in VertexLayout description, Shader shader);
 
     /// <summary>
     /// Binds a vertex buffer to the input assembler stage.
+    /// <param name="offset">
+    /// Pointer to the first element of an array of offsets (one for each vertex buffer where
+    /// the ith offset corresponds to the ith vertex buffer). This is an offset, in bytes,
+    /// from the start of the vertex buffer to the position in the vertex buffer from which
+    /// the input assembly should start reading the vertex data.You would use this
+    /// if you wanted to skip over some vertex data at the front of the vertex buffer.
+    /// </param>
     /// </summary>
-    void SetVertexBuffer(IBuffer buffer, uint stride, uint slot = 0, uint offsetInBytes = 0);
+    public abstract void SetVertexBuffer(Buffer buffer, uint stride, uint slot = 0, uint offset = 0);
 
     /// <summary>
     /// Binds an index buffer to the input assembler stage.
+    /// <paramref name="offset">
+    /// This is an offset, in bytes, from the start of the index buffer to the position in the index buffer
+    /// from which the input assembly should start reading the index data.
+    /// </paramref>
     /// </summary>
-    void SetIndexBuffer(IBuffer buffer, IndexFormat format = IndexFormat.UInt32, uint offsetInBytes = 0);
+    public abstract void SetIndexBuffer(Buffer buffer, IndexFormat format = IndexFormat.UInt32, uint offset = 0);
+
+    /// <summary>
+    /// TBD:
+    /// </summary>
+    public abstract void SetVertexShader(Shader shader);
+
+    /// <summary>
+    /// TBD:
+    /// </summary>
+    public abstract void SetPixelShader(Shader shader);
+
+    /// <summary>
+    /// TBD:
+    /// </summary>
+    public abstract void SetInputLayout(InputLayout inputLayout);
+
+    /// <summary>
+    /// TBD:
+    /// </summary>
+    public abstract void SetPrimitiveTopology(PrimitiveTopology primitiveTopology);
 
     #endregion
 
@@ -117,17 +158,17 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Draws non-indexed, non-instanced primitives.
     /// </summary>
-    void Draw(uint vertexCount, uint startVertexLocation = 0);
+    public abstract void Draw(uint vertexCount, uint startVertexLocation = 0);
 
     /// <summary>
     /// Draws indexed, non-instanced primitives.
     /// </summary>
-    void DrawIndexed(uint indexCount, uint startIndexLocation = 0, int baseVertexLocation = 0);
+    public abstract void DrawIndexed(uint indexCount, uint startIndexLocation = 0, int baseVertexLocation = 0);
 
     /// <summary>
     /// Draws non-indexed, instanced primitives.
     /// </summary>
-    void DrawInstanced(
+    public abstract void DrawInstanced(
         uint vertexCountPerInstance,
         uint instanceCount,
         uint startVertexLocation = 0,
@@ -136,7 +177,7 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Draws indexed, instanced primitives.
     /// </summary>
-    void DrawIndexedInstanced(
+    public abstract void DrawIndexedInstanced(
         uint indexCountPerInstance,
         uint instanceCount,
         uint startIndexLocation = 0,
@@ -146,12 +187,12 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Draws non-indexed primitives with parameters generated on the GPU in an indirect arguments buffer.
     /// </summary>
-    void DrawIndirect(IBuffer buffer, uint alignedByteOffset = 0);
+    public abstract void DrawIndirect(Buffer buffer, uint alignedByteOffset = 0);
 
     /// <summary>
     /// Draws indexed primitives with parameters generated on the GPU in an indirect arguments buffer.
     /// </summary>
-    void DrawIndexedIndirect(IBuffer buffer, uint alignedByteOffset = 0);
+    public abstract void DrawIndexedIndirect(Buffer buffer, uint alignedByteOffset = 0);
 
     #endregion
 
@@ -160,12 +201,20 @@ public interface IGraphicsDevice : IDisposable
     /// <summary>
     /// Executes a compute shader using the specified thread group counts.
     /// </summary>
-    void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1);
+    public abstract void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1);
 
     /// <summary>
     /// Executes a compute shader with thread group counts generated on the GPU in an indirect arguments buffer.
     /// </summary>
-    void DispatchIndirect(IBuffer buffer, uint alignedByteOffset = 0);
+    public abstract void DispatchIndirect(Buffer buffer, uint alignedByteOffset = 0);
+
+    #endregion
+
+    #region Disposing
+
+    protected bool _disposed = false;
+
+    public abstract void Dispose();
 
     #endregion
 }

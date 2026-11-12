@@ -21,15 +21,49 @@ public sealed partial class Luna : Application<Luna>
         WindowMode = WindowMode.Windowed;
     }
 
+    VertexPositionColor[] _data;
+    ushort[] _indexData;
+    Core.Graphics.Buffer _vb;
+    Core.Graphics.Buffer _ib;
+    Shader _vs;
+    Shader _ps;
+    InputLayout _inputLayout;
+
     protected override void Initialize()
     {
-        GraphicsDevice.VSync = true;
+        GraphicsDevice.VSync = false;
         GraphicsDevice.ClearColor = new Color4(0.2f, 0.3f, 0.3f, 1.0f);
+
         base.Initialize();
     }
 
     protected override void LoadContent()
     {
+        _data = [
+            new(new(0f, 0.5f, 0.0f), new(1.0f, 0.0f, 0.0f, 1.0f)),
+            new(new(0.5f, -0.5f, 0.0f), new(0.0f, 1.0f, 0.0f, 1.0f)),
+            new(new(-0.5f, -0.5f, 0.0f), new(0.0f, 0.0f, 1.0f, 1.0f))];
+
+        _indexData = [0, 1, 2];
+
+        _vb = GraphicsDevice.CreateBuffer(_data, new BufferDescription(BindFlags.VertexBuffer, false));
+        _ib = GraphicsDevice.CreateBuffer(_indexData, new BufferDescription(BindFlags.IndexBuffer, false));
+
+        _vs = GraphicsDevice.CreateShader(new ShaderDescription(
+            ShaderType.Vertex,
+            File.ReadAllBytes(Path.Combine("Assets", "Triangle.hlsl")),
+            "VSMain",
+            false,
+            "Triangle_VS"));
+
+        _ps = GraphicsDevice.CreateShader(new ShaderDescription(
+            ShaderType.Pixel,
+            File.ReadAllBytes(Path.Combine("Assets", "Triangle.hlsl")),
+            "PSMain",
+            false,
+            "Triangle_PS"));
+
+        _inputLayout = GraphicsDevice.CreateInputLayout(VertexPositionColor.Layout, _vs);
     }
 
     protected override void Update(GameTime gameTime)
@@ -38,11 +72,6 @@ public sealed partial class Luna : Application<Luna>
         {
             Exit();
         }
-
-        var deltaPos = Mouse.Delta;
-        var pos = Mouse.Position;
-
-        //Console.WriteLine($"pos ({pos.X}, {pos.Y})\tdelta({deltaPos.X}, {deltaPos.Y})");
 
         if (_showFpsInTitle)
         {
@@ -60,6 +89,13 @@ public sealed partial class Luna : Application<Luna>
 
     protected override void Draw(GameTime gameTime)
     {
+        GraphicsDevice.SetPrimitiveTopology(PrimitiveTopology.TriangleStrip);
+        GraphicsDevice.SetVertexShader(_vs);
+        GraphicsDevice.SetPixelShader(_ps);
+        GraphicsDevice.SetInputLayout(_inputLayout);
+        GraphicsDevice.SetVertexBuffer(_vb, VertexPositionColor.Layout.Stride, 0, 0);
+        GraphicsDevice.SetIndexBuffer(_ib, IndexFormat.UInt16, 0);
+        GraphicsDevice.DrawIndexed((uint)_indexData.Length, 0, 0);
     }
 
     protected override void UnloadContent()
@@ -68,14 +104,19 @@ public sealed partial class Luna : Application<Luna>
 
     protected override void Cleanup()
     {
+        _inputLayout?.Dispose();
+        _ps?.Dispose();
+        _vs?.Dispose();
+        _vb?.Dispose();
+        _ib?.Dispose();
     }
 
-    protected override IGraphicsDevice CreateGraphicsDevice(GraphicsBackend backend, NativeWindowInfo window)
+    protected override GraphicsDevice CreateGraphicsDevice(GraphicsAPI backend, NativeWindowInfo window)
     {
-        if (backend == GraphicsBackend.Default)
+        if (backend == GraphicsAPI.Default)
         {
 #if SUPPORT_DIRECTX
-            backend = GraphicsBackend.Direct3D11;
+            backend = GraphicsAPI.D3D11;
 #elif SUPPORT_VULKAN
             //backend = GraphicsBackend.Vulkan;
 #endif
@@ -84,8 +125,8 @@ public sealed partial class Luna : Application<Luna>
         return backend switch
         {
 #if SUPPORT_DIRECTX
-            GraphicsBackend.Direct3D11
-                => new Torture.Graphics.Direct3D11.GraphicsDevice(window.Win32Hwnd, window.Size),
+            GraphicsAPI.D3D11
+                => new Torture.Graphics.Direct3D11.D3D11GraphicsDevice(window.WindowHandle, window.Size),
 #endif
 #if SUPPORT_VULKAN
             //GraphicsBackend.Vulkan

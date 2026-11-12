@@ -23,7 +23,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
     private WindowMode _windowMode = WindowMode.Windowed;
 
     protected nint Window { get; private set; } = IntPtr.Zero;
-    public IGraphicsDevice GraphicsDevice { get; private set; } = null!;
+    public GraphicsDevice GraphicsDevice { get; private set; } = null!;
 
     /// <summary>
     /// Gets or sets the window title.
@@ -69,7 +69,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
     public string Identifier { get; protected init; } = "semisoft.torture.app";
     public SizeI PreferredWindowSize { get; protected init; } = new(800, 600);
     public bool IsResizable { get; protected init; } = true;
-    public GraphicsBackend PreferredBackend { get; protected init; } = GraphicsBackend.Default;
+    public GraphicsAPI PreferredBackend { get; protected init; } = GraphicsAPI.Default;
 
     /// <summary>
     /// Signals the application to exit at the end of the current frame.
@@ -164,7 +164,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
     /// <summary>
     /// Creates the platform-specific graphics device instance.
     /// </summary>
-    protected abstract IGraphicsDevice CreateGraphicsDevice(GraphicsBackend backend, NativeWindowInfo window);
+    protected abstract GraphicsDevice CreateGraphicsDevice(GraphicsAPI backend, NativeWindowInfo window);
 
     public static SDL.AppResult AppInit(out TApp? appState, string[] args)
     {
@@ -201,38 +201,6 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
         BeginRun();
 
         _timer.Start();
-
-        return SDL.AppResult.Continue;
-    }
-
-    public SDL.AppResult AppIterate()
-    {
-        if (_isExiting)
-        {
-            return SDL.AppResult.Success;
-        }
-
-        TimeSpan totalTime = _timer.Elapsed;
-        TimeSpan elapsedTime = totalTime - _lastFrameTime;
-        _lastFrameTime = totalTime;
-        var gameTime = new GameTime(totalTime, elapsedTime);
-
-        // Update systems
-        Keyboard.Update();
-        Mouse.Update();
-
-        Update(gameTime);
-
-        if (_isExiting)
-        {
-            return SDL.AppResult.Success;
-        }
-
-        if (BeginDraw())
-        {
-            Draw(gameTime);
-            EndDraw();
-        }
 
         return SDL.AppResult.Continue;
     }
@@ -296,6 +264,38 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
             case SDL.EventType.MouseWheel:
                 Mouse.OnScrollWheel(e.Wheel.X, e.Wheel.Y);
                 break;
+        }
+
+        return SDL.AppResult.Continue;
+    }
+
+    public SDL.AppResult AppIterate()
+    {
+        if (_isExiting)
+        {
+            return SDL.AppResult.Success;
+        }
+
+        TimeSpan totalTime = _timer.Elapsed;
+        TimeSpan elapsedTime = totalTime - _lastFrameTime;
+        _lastFrameTime = totalTime;
+        var gameTime = new GameTime(totalTime, elapsedTime);
+
+        // Update systems
+        Keyboard.Update();
+        Mouse.Update();
+
+        Update(gameTime);
+
+        if (_isExiting)
+        {
+            return SDL.AppResult.Success;
+        }
+
+        if (BeginDraw())
+        {
+            Draw(gameTime);
+            EndDraw();
         }
 
         return SDL.AppResult.Continue;

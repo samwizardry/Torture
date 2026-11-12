@@ -11,4 +11,10 @@
     <Project Path="src/Torture.ImGui/Torture.ImGui.csproj" />
     <Project Path="src/Torture.Luna/Torture.Luna.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <File Path="tests/Directory.Build.props" />
+    <File Path="tests/Directory.Build.targets" />
+    <File Path="tests/Directory.Packages.props" />
+    <Project Path="tests/Torture.UnitTests/Torture.UnitTests.csproj" />
+  </Folder>
 </Solution>
