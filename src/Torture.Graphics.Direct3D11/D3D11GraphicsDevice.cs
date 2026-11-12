@@ -1,4 +1,6 @@
-﻿using Vortice.Direct3D;
+﻿using SharpGen.Runtime;
+
+using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Direct3D11.Debug;
 using Vortice.DXGI;
@@ -38,6 +40,10 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
 
     public D3D11GraphicsDevice(nint hwnd, SizeI size, Format colorFormat = Format.B8G8R8A8_UNorm, Format depthStencilFormat = Format.D24_UNorm_S8_UInt)
     {
+#if DEBUG
+        SharpGen.Runtime.Configuration.EnableObjectTracking = true;
+#endif
+
         try
         {
             Size = size;
@@ -484,6 +490,8 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
             }
             dxgiDebug.Dispose();
         }
+
+        ReportSharpGenLeaks();
 #endif
 
         _disposed = true;
@@ -558,6 +566,35 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
             Console.ForegroundColor = prevColor;
         }
         _infoQueue.ClearStoredMessages();
+#endif
+    }
+
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void ReportSharpGenLeaks()
+    {
+#if DEBUG
+        var leaks = SharpGen.Runtime.Diagnostics.ObjectTracker.FindActiveObjects();
+        if (leaks.Count == 0)
+        {
+            return;
+        }
+        ConsoleColor prevColor = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        foreach (var leak in leaks)
+        {
+            if (leak.TryGetTarget(out var target))
+            {
+                string typeName = target.GetType().Name;
+                nint ptr = target.NativePointer;
+                // Вывод в едином стиле D3D11/DXGI: [SharpGen WARNING] (0x000001DF...): Live Blob
+                Console.WriteLine($"[SharpGen WARNING] (0x{ptr:X16}): Live instance of {typeName} was not disposed.");
+            }
+            else
+            {
+                Console.WriteLine("[SharpGen WARNING]: Active tracking reference with already collected target.");
+            }
+        }
+        Console.ForegroundColor = prevColor;
 #endif
     }
 
