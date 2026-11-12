@@ -111,28 +111,28 @@ public sealed partial class Luna : Application<Luna>
         _ib?.Dispose();
     }
 
-    protected override GraphicsDevice CreateGraphicsDevice(GraphicsAPI backend, NativeWindowInfo window)
+    protected override GraphicsDevice CreateGraphicsDevice(GraphicsAPI api, NativeWindowInfo window)
     {
-        if (backend == GraphicsAPI.Default)
+        if (api == GraphicsAPI.Default)
         {
 #if SUPPORT_DIRECTX
-            backend = GraphicsAPI.D3D11;
+            api = GraphicsAPI.D3D11;
 #elif SUPPORT_VULKAN
-            //backend = GraphicsBackend.Vulkan;
+            //api = GraphicsAPI.Vulkan;
 #endif
         }
 
-        return backend switch
+        return api switch
         {
 #if SUPPORT_DIRECTX
             GraphicsAPI.D3D11
-                => new Torture.Graphics.Direct3D11.D3D11GraphicsDevice(window.WindowHandle, window.Size),
+                => new Torture.Graphics.Direct3D11.D3D11GraphicsDevice(window.WindowHandle, window.ClientSize),
 #endif
 #if SUPPORT_VULKAN
-            //GraphicsBackend.Vulkan
+            //GraphicsAPI.Vulkan
             //    => new VulkanGraphicsDevice(),
 #endif
-            _ => throw new PlatformNotSupportedException($"Backend {backend} is not supported on this platform.")
+            _ => throw new PlatformNotSupportedException($"{api} is not supported on this platform.")
         };
     }
 }

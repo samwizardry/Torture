@@ -69,7 +69,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
     public string Identifier { get; protected init; } = "semisoft.torture.app";
     public SizeI PreferredWindowSize { get; protected init; } = new(800, 600);
     public bool IsResizable { get; protected init; } = true;
-    public GraphicsAPI PreferredBackend { get; protected init; } = GraphicsAPI.Default;
+    public GraphicsAPI PreferredGraphicsAPI { get; protected init; } = GraphicsAPI.Default;
 
     /// <summary>
     /// Signals the application to exit at the end of the current frame.
@@ -164,7 +164,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
     /// <summary>
     /// Creates the platform-specific graphics device instance.
     /// </summary>
-    protected abstract GraphicsDevice CreateGraphicsDevice(GraphicsAPI backend, NativeWindowInfo window);
+    protected abstract GraphicsDevice CreateGraphicsDevice(GraphicsAPI api, NativeWindowInfo window);
 
     public static SDL.AppResult AppInit(out TApp? appState, string[] args)
     {
@@ -191,7 +191,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
             return SDL.AppResult.Failure;
         }
 
-        GraphicsDevice = CreateGraphicsDevice(PreferredBackend, GetNativeWindowInfo(Window));
+        GraphicsDevice = CreateGraphicsDevice(PreferredGraphicsAPI, GetNativeWindowInfo(Window));
 
         // Initialize systems
         Keyboard.Initialize();

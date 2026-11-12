@@ -15,6 +15,7 @@
     <File Path="tests/Directory.Build.props" />
     <File Path="tests/Directory.Build.targets" />
     <File Path="tests/Directory.Packages.props" />
+    <Project Path="tests/Torture.Direct3D11.UnitTests/Torture.Direct3D11.UnitTests.csproj" />
     <Project Path="tests/Torture.UnitTests/Torture.UnitTests.csproj" />
   </Folder>
 </Solution>

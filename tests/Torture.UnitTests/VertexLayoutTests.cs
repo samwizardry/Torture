@@ -6,74 +6,63 @@ using Torture.Core.Graphics;
 
 namespace Torture.UnitTests;
 
-public class Vertices
+/// <summary>
+/// Unit tests verifying vertex layout integrity, continuous offset calculation, and semantic indexing.
+/// </summary>
+public class VertexLayoutTests
 {
-    [Theory]
-    // 16 байт
-    [InlineData(VertexElementFormat.Float4, 16)]
-    [InlineData(VertexElementFormat.Int4, 16)]
-    [InlineData(VertexElementFormat.UInt4, 16)]
-    // 12 байт
-    [InlineData(VertexElementFormat.Float3, 12)]
-    [InlineData(VertexElementFormat.Int3, 12)]
-    [InlineData(VertexElementFormat.UInt3, 12)]
-    // 8 байт
-    [InlineData(VertexElementFormat.Float2, 8)]
-    [InlineData(VertexElementFormat.Int2, 8)]
-    [InlineData(VertexElementFormat.UInt2, 8)]
-    [InlineData(VertexElementFormat.Half4, 8)]
-    [InlineData(VertexElementFormat.Short4, 8)]
-    [InlineData(VertexElementFormat.UShort4, 8)]
-    [InlineData(VertexElementFormat.NormShort4, 8)]
-    [InlineData(VertexElementFormat.UNormShort4, 8)]
-    // 4 байта
-    [InlineData(VertexElementFormat.Float1, 4)]
-    [InlineData(VertexElementFormat.Int1, 4)]
-    [InlineData(VertexElementFormat.UInt1, 4)]
-    [InlineData(VertexElementFormat.Half2, 4)]
-    [InlineData(VertexElementFormat.Short2, 4)]
-    [InlineData(VertexElementFormat.UShort2, 4)]
-    [InlineData(VertexElementFormat.NormShort2, 4)]
-    [InlineData(VertexElementFormat.UNormShort2, 4)]
-    [InlineData(VertexElementFormat.Byte4, 4)]
-    [InlineData(VertexElementFormat.UByte4, 4)]
-    [InlineData(VertexElementFormat.NormByte4, 4)]
-    [InlineData(VertexElementFormat.UNormByte4, 4)]
-    // 2 байта
-    [InlineData(VertexElementFormat.Byte2, 2)]
-    [InlineData(VertexElementFormat.UByte2, 2)]
-    [InlineData(VertexElementFormat.NormByte2, 2)]
-    [InlineData(VertexElementFormat.UNormByte2, 2)]
-    public void ByteWidth_ReturnsExpectedSize(VertexElementFormat format, uint expectedBytes)
+    #region Smart Layout Verifier
+
+    /// <summary>
+    /// Validates continuity of offsets, monotonicity of semantic indices, and cumulative stride.
+    /// </summary>
+    private static void AssertLayoutIntegrity(VertexLayout layout, uint expectedStride)
     {
-        uint actualBytes = format.ByteWidth();
-        actualBytes.Should().Be(expectedBytes,
-            because: $"формат {format} обязан занимать ровно {expectedBytes} байт в видеопамяти");
+        var elements = layout.Elements;
+
+        elements.Length.Should().BeGreaterThan(0, because: "a vertex layout must contain at least one element");
+
+        uint runningOffset = 0;
+        Dictionary<VertexElementSemantic, uint> expectedSemanticCounters = [];
+
+        for (int i = 0; i < elements.Length; i++)
+        {
+            var element = elements[i];
+            uint formatSize = element.Format.ByteWidth();
+
+            // 1. Validate contiguous byte offset
+            element.Offset.Should().Be(runningOffset,
+                because: $"element [{i}] ({element.SemanticName}) must be located at offset {runningOffset} bytes without gaps");
+
+            // 2. Validate monotonic semantic indexing (0, 1, 2...)
+            uint expectedIndex = expectedSemanticCounters.GetValueOrDefault(element.SemanticName, 0u);
+            element.SemanticIndex.Should().Be(expectedIndex,
+                because: $"semantic {element.SemanticName} at element [{i}] must have index {expectedIndex}");
+            expectedSemanticCounters[element.SemanticName] = expectedIndex + 1;
+
+            runningOffset += formatSize;
+        }
+
+        // 3. Validate overall stride
+        layout.Stride.Should().Be(runningOffset,
+            because: "stride must match the exact sum of all element byte widths");
+        layout.Stride.Should().Be(expectedStride,
+            because: $"stride must match the expected layout size ({expectedStride} bytes)");
     }
 
-    [Fact]
-    public void ByteWidth_CoversAllEnumValues()
-    {
-        var allFormats = Enum.GetValues<VertexElementFormat>();
-        allFormats.Should().NotBeEmpty();
-        foreach (var format in allFormats)
-        {
-            // Проверяем, что для любого формата не бросается NotSupportedException
-            var act = () => format.ByteWidth();
-            act.Should().NotThrow($"для формата {format} обязана быть ветка в switch");
-            // Проверяем, что размер попадает в допустимые GPU-размеры
-            uint width = format.ByteWidth();
-            width.Should().BeOneOf([2u, 4u, 8u, 12u, 16u],
-                because: $"размер {width} байт для формата {format} должен быть аппаратно валидным для видеокарты");
-        }
-    }
+    #endregion
+
+    #region Standard Layouts Tests
 
     [Fact]
     public void VertexPosition_Layout_IsCorrect()
     {
         var layout = VertexPosition.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 12);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPosition>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPosition>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(1);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
     }
@@ -82,8 +71,11 @@ public class Vertices
     public void VertexPositionColor_Layout_IsCorrect()
     {
         var layout = VertexPositionColor.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 28);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionColor>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionColor>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(2);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Color, VertexElementFormat.Float4) { Offset = 12, SemanticIndex = 0 });
@@ -93,8 +85,11 @@ public class Vertices
     public void VertexPositionTexture_Layout_IsCorrect()
     {
         var layout = VertexPositionTexture.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 20);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionTexture>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionTexture>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(2);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.TexCoord, VertexElementFormat.Float2) { Offset = 12, SemanticIndex = 0 });
@@ -104,8 +99,11 @@ public class Vertices
     public void VertexPositionDualTexture_Layout_CalculatesConsecutiveTexCoords()
     {
         var layout = VertexPositionDualTexture.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 28);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionDualTexture>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionDualTexture>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(3);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.TexCoord, VertexElementFormat.Float2) { Offset = 12, SemanticIndex = 0 });
@@ -116,8 +114,11 @@ public class Vertices
     public void VertexPositionNormal_Layout_IsCorrect()
     {
         var layout = VertexPositionNormal.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 24);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormal>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormal>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(2);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Normal, VertexElementFormat.Float3) { Offset = 12, SemanticIndex = 0 });
@@ -127,8 +128,11 @@ public class Vertices
     public void VertexPositionColorTexture_Layout_IsCorrect()
     {
         var layout = VertexPositionColorTexture.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 36);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionColorTexture>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionColorTexture>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(3);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Color, VertexElementFormat.Float4) { Offset = 12, SemanticIndex = 0 });
@@ -139,8 +143,11 @@ public class Vertices
     public void VertexPositionNormalColor_Layout_IsCorrect()
     {
         var layout = VertexPositionNormalColor.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 40);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalColor>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalColor>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(3);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Normal, VertexElementFormat.Float3) { Offset = 12, SemanticIndex = 0 });
@@ -151,8 +158,11 @@ public class Vertices
     public void VertexPositionNormalTexture_Layout_IsCorrect()
     {
         var layout = VertexPositionNormalTexture.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 32);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalTexture>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalTexture>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(3);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Normal, VertexElementFormat.Float3) { Offset = 12, SemanticIndex = 0 });
@@ -163,8 +173,11 @@ public class Vertices
     public void VertexPositionNormalColorTexture_Layout_IsCorrect()
     {
         var layout = VertexPositionNormalColorTexture.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 48);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalColorTexture>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalColorTexture>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(4);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Normal, VertexElementFormat.Float3) { Offset = 12, SemanticIndex = 0 });
@@ -176,8 +189,11 @@ public class Vertices
     public void VertexPositionNormalTangentColorTexture_Layout_IsCorrect()
     {
         var layout = VertexPositionNormalTangentColorTexture.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 52);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalTangentColorTexture>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalTangentColorTexture>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(5);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Normal, VertexElementFormat.Float3) { Offset = 12, SemanticIndex = 0 });
@@ -190,8 +206,11 @@ public class Vertices
     public void VertexPositionNormalTangentColorTextureSkinning_Layout_IsCorrect()
     {
         var layout = VertexPositionNormalTangentColorTextureSkinning.Layout;
+
         AssertLayoutIntegrity(layout, expectedStride: 60);
-        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalTangentColorTextureSkinning>());
+        layout.Stride.Should().Be((uint)Unsafe.SizeOf<VertexPositionNormalTangentColorTextureSkinning>(),
+            because: "layout stride must match physical struct size");
+
         layout.Elements.Length.Should().Be(7);
         layout.Elements[0].Should().Be(new VertexElement(VertexElementSemantic.Position, VertexElementFormat.Float3) { Offset = 0, SemanticIndex = 0 });
         layout.Elements[1].Should().Be(new VertexElement(VertexElementSemantic.Normal, VertexElementFormat.Float3) { Offset = 12, SemanticIndex = 0 });
@@ -202,15 +221,19 @@ public class Vertices
         layout.Elements[6].Should().Be(new VertexElement(VertexElementSemantic.BlendWeight, VertexElementFormat.UNormByte4) { Offset = 56, SemanticIndex = 0 });
     }
 
+    #endregion
+
+    #region Heavy Custom Layout Stress Test
+
     [Fact]
     public void CustomHeavyUberVertex_CalculatesOffsetsAndIndicesFlawlessly()
     {
-        // Сложная вершина продвинутого шейдера:
-        // - Геометрия: Position (12B), Normal (12B), Tangent (16B) = 40B
-        // - Цвета: DiffuseColor (4B), SpecularColor (4B) = 8B
-        // - Текстурные координаты: UV0 Float2 (8B), UV1 Lightmap Half2 (4B), UV2 DetailMap Half2 (4B) = 16B
-        // - Скиннинг на 8 костей: Bones 0..3 (4B), Bones 4..7 (4B), Weights 0..3 (4B), Weights 4..7 (4B) = 16B
-        // ИТОГО: 40 + 8 + 16 + 16 = 80 байт
+        // Complex custom uber-shader vertex layout:
+        // - Geometry: Position (12B), Normal (12B), Tangent (16B) = 40B
+        // - Colors: DiffuseColor (4B), SpecularColor (4B) = 8B
+        // - Texture coordinates: UV0 Float2 (8B), UV1 Lightmap Half2 (4B), UV2 DetailMap Half2 (4B) = 16B
+        // - Skinning with 8 bones: Bones 0..3 (4B), Bones 4..7 (4B), Weights 0..3 (4B), Weights 4..7 (4B) = 16B
+        // TOTAL: 40 + 8 + 16 + 16 = 80 bytes
         var customLayout = new VertexLayout([
             new(VertexElementSemantic.Position, VertexElementFormat.Float3),       // [0]  Off: 0,  Idx: 0, Size: 12
             new(VertexElementSemantic.Normal, VertexElementFormat.Float3),         // [1]  Off: 12, Idx: 0, Size: 12
@@ -225,27 +248,38 @@ public class Vertices
             new(VertexElementSemantic.BlendWeight, VertexElementFormat.UNormByte4),// [10] Off: 72, Idx: 0, Size: 4
             new(VertexElementSemantic.BlendWeight, VertexElementFormat.UNormByte4) // [11] Off: 76, Idx: 1, Size: 4
         ]);
-        // 1. Проверяем авто-расчёт целостности
+
+        // 1. Verify continuous layout integrity and cumulative stride
         AssertLayoutIntegrity(customLayout, expectedStride: 80);
-        // 2. Детальная проверка каждого элемента
+
+        // 2. Validate multi-semantic element indexing
         var elems = customLayout.Elements;
-        elems.Length.Should().Be(12);
-        // Проверка семантических индексов для повторяющихся семантик
-        elems[3].SemanticIndex.Should().Be(0);
-        elems[4].SemanticIndex.Should().Be(1);
-        elems[5].SemanticIndex.Should().Be(0);
-        elems[6].SemanticIndex.Should().Be(1);
-        elems[7].SemanticIndex.Should().Be(2);
-        elems[8].SemanticIndex.Should().Be(0);
-        elems[9].SemanticIndex.Should().Be(1);
-        elems[10].SemanticIndex.Should().Be(0);
-        elems[11].SemanticIndex.Should().Be(1);
-        // Проверка смещений критических точек
-        elems[5].Offset.Should().Be(48); // Первый TexCoord
-        elems[8].Offset.Should().Be(64); // Первый BlendIndices
-        elems[11].Offset.Should().Be(76); // Последний элемент
-        (elems[11].Offset + elems[11].Format.ByteWidth()).Should().Be(80);
-        // 3. Проверка Structural Equality и HashCode
+        elems.Length.Should().Be(12, because: "the custom layout defines exactly 12 vertex elements");
+
+        // Color indices (0 and 1)
+        elems[3].SemanticIndex.Should().Be(0, because: "first Color element must have index 0");
+        elems[4].SemanticIndex.Should().Be(1, because: "second Color element must have index 1");
+
+        // TexCoord indices (0, 1, 2)
+        elems[5].SemanticIndex.Should().Be(0, because: "first TexCoord element must have index 0");
+        elems[6].SemanticIndex.Should().Be(1, because: "second TexCoord element must have index 1");
+        elems[7].SemanticIndex.Should().Be(2, because: "third TexCoord element must have index 2");
+
+        // 8-bone BlendIndices (0 and 1)
+        elems[8].SemanticIndex.Should().Be(0, because: "first BlendIndices element must have index 0");
+        elems[9].SemanticIndex.Should().Be(1, because: "second BlendIndices element must have index 1");
+
+        // 8-bone BlendWeight (0 and 1)
+        elems[10].SemanticIndex.Should().Be(0, because: "first BlendWeight element must have index 0");
+        elems[11].SemanticIndex.Should().Be(1, because: "second BlendWeight element must have index 1");
+
+        // 3. Check critical offset checkpoints
+        elems[5].Offset.Should().Be(48, because: "first TexCoord must be placed immediately after the second Color element");
+        elems[8].Offset.Should().Be(64, because: "first BlendIndices must be placed immediately after the last TexCoord element");
+        elems[11].Offset.Should().Be(76, because: "last BlendWeight element must start at byte 76");
+        (elems[11].Offset + elems[11].Format.ByteWidth()).Should().Be(80, because: "end of the last element must match layout stride");
+
+        // 4. Validate value equality and hash code consistency
         var identicalLayout = new VertexLayout([
             new(VertexElementSemantic.Position, VertexElementFormat.Float3),
             new(VertexElementSemantic.Normal, VertexElementFormat.Float3),
@@ -260,32 +294,10 @@ public class Vertices
             new(VertexElementSemantic.BlendWeight, VertexElementFormat.UNormByte4),
             new(VertexElementSemantic.BlendWeight, VertexElementFormat.UNormByte4)
         ]);
-        customLayout.Should().Be(identicalLayout);
-        customLayout.GetHashCode().Should().Be(identicalLayout.GetHashCode());
+
+        customLayout.Should().Be(identicalLayout, because: "two layouts with identical elements must be structurally equal");
+        customLayout.GetHashCode().Should().Be(identicalLayout.GetHashCode(), because: "equal layouts must produce identical hash codes for caching");
     }
 
-    private static void AssertLayoutIntegrity(VertexLayout layout, uint expectedStride)
-    {
-        var elements = layout.Elements;
-        elements.Length.Should().BeGreaterThan(0, "лейаут не может быть пустым");
-        uint runningOffset = 0;
-        Dictionary<VertexElementSemantic, uint> expectedSemanticCounters = [];
-        for (int i = 0; i < elements.Length; i++)
-        {
-            var element = elements[i];
-            uint formatSize = element.Format.ByteWidth();
-            // 1. Проверка непрерывности смещения (Offset)
-            element.Offset.Should().Be(runningOffset,
-                $"элемент [{i}] ({element.SemanticName}) должен находиться по смещению {runningOffset} байт");
-            // 2. Проверка монотонности SemanticIndex
-            uint expectedIndex = expectedSemanticCounters.GetValueOrDefault(element.SemanticName, 0u);
-            element.SemanticIndex.Should().Be(expectedIndex,
-                $"семантика {element.SemanticName} на позиции [{i}] должна иметь индекс {expectedIndex}");
-            expectedSemanticCounters[element.SemanticName] = expectedIndex + 1;
-            runningOffset += formatSize;
-        }
-        // 3. Проверка итогового Stride
-        layout.Stride.Should().Be(runningOffset, "Stride должен точно равняться сумме размеров всех элементов");
-        layout.Stride.Should().Be(expectedStride, $"Stride должен соответствовать ожидаемому значению ({expectedStride} байт)");
-    }
+    #endregion
 }

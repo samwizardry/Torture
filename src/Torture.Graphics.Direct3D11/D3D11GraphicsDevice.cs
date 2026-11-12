@@ -177,7 +177,7 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     }
 
     /// <inheritdoc />
-    public override Core.Graphics.GraphicsAPI Backend => Core.Graphics.GraphicsAPI.D3D11;
+    public override Core.Graphics.GraphicsAPI API => Core.Graphics.GraphicsAPI.D3D11;
 
     /// <inheritdoc />
     public override SizeI Size { get; protected set; }

@@ -168,6 +168,9 @@ public static class Extensions
         return result;
     }
 
+    public static Format ToDXGIFormat(this Core.Graphics.Format format) =>
+        (Format)format;
+
     public static Format ToDXGIFormat(this Core.Graphics.IndexFormat format) =>
         format switch
         {

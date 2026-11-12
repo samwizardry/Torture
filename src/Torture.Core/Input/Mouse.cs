@@ -5,9 +5,6 @@ using SDL3;
 
 namespace Torture.Core.Input;
 
-/// <summary>
-/// Specifies mouse buttons as bitmasks matching SDL3 mouse button flags.
-/// </summary>
 [Flags]
 public enum MouseButton : uint
 {
@@ -31,29 +28,14 @@ public static class Mouse
     private static Vector2 s_lastRawScroll;
     private static Vector2 s_scrollDelta;
 
-    /// <summary>
-    /// Gets the current cursor position in window coordinates.
-    /// </summary>
     public static Vector2 Position => s_position;
 
-    /// <summary>
-    /// Gets the cursor movement delta since the previous frame.
-    /// </summary>
     public static Vector2 Delta => s_delta;
 
-    /// <summary>
-    /// Gets the mouse wheel scroll delta (X = horizontal, Y = vertical) for the current frame.
-    /// </summary>
     public static Vector2 ScrollDelta => s_scrollDelta;
 
-    /// <summary>
-    /// Gets the vertical mouse wheel scroll delta for the current frame.
-    /// </summary>
     public static float ScrollY => s_scrollDelta.Y;
 
-    /// <summary>
-    /// Gets or sets whether relative mouse mode (cursor locked and hidden for 3D camera look) is enabled.
-    /// </summary>
     public static bool IsRelativeMode
     {
         get => s_window != IntPtr.Zero && SDL.GetWindowRelativeMouseMode(s_window);
@@ -69,9 +51,6 @@ public static class Mouse
         }
     }
 
-    /// <summary>
-    /// Gets or sets whether the OS mouse cursor is visible.
-    /// </summary>
     public static bool IsCursorVisible
     {
         get => SDL.CursorVisible();
@@ -130,9 +109,6 @@ public static class Mouse
         s_rawScroll += new Vector2(scrollX, scrollY);
     }
 
-    /// <summary>
-    /// Moves the mouse cursor to the specified coordinates within the window.
-    /// </summary>
     public static void SetPosition(float x, float y)
     {
         if (s_window != IntPtr.Zero)
