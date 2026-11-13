@@ -2,6 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- Workstation GC: для клиентской игры это правильно. Server GC = куча на каждое ядро,
+       больше памяти, его потоки конкурируют с потоками игры/рендера. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <!-- Background GC: gen2 идёт параллельно с кадром. Без него SustainedLowLatency бесполезен. -->
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <!-- Не отдавать освобождённые сегменты ОС, а держать их про запас: меньше скачков при повторном росте кучи. -->
+    <RetainVMGarbageCollection>true</RetainVMGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

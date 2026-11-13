@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Runtime;
 
 using SDL3;
 
+using Torture.Core.Diagnostics;
 using Torture.Core.Graphics;
 using Torture.Core.Input;
 
@@ -70,6 +72,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
     public SizeI PreferredWindowSize { get; protected init; } = new(800, 600);
     public bool IsResizable { get; protected init; } = true;
     public GraphicsAPI PreferredGraphicsAPI { get; protected init; } = GraphicsAPI.Default;
+    public bool CollectGarbageBeforeRun { get; protected init; } = true;
 
     /// <summary>
     /// Signals the application to exit at the end of the current frame.
@@ -200,6 +203,13 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
         Initialize();
         BeginRun();
 
+        if (CollectGarbageBeforeRun)
+        {
+            GarbageCollection.FullBlockingCollect();
+        }
+        GarbageCollection.EnterGameplayMode();
+
+        AllocationTracker.Reset();
         _timer.Start();
 
         return SDL.AppResult.Continue;
@@ -271,6 +281,8 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
 
     public SDL.AppResult AppIterate()
     {
+        AllocationTracker.BeginFrame();
+
         if (_isExiting)
         {
             return SDL.AppResult.Success;
@@ -284,8 +296,10 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
         // Update systems
         Keyboard.Update();
         Mouse.Update();
+        AllocationTracker.Mark("Input");
 
         Update(gameTime);
+        AllocationTracker.Mark("Update");
 
         if (_isExiting)
         {
@@ -297,6 +311,9 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
             Draw(gameTime);
             EndDraw();
         }
+        AllocationTracker.Mark("Draw");
+
+        AllocationTracker.EndFrame();
 
         return SDL.AppResult.Continue;
     }

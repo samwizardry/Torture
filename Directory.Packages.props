@@ -4,6 +4,9 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Ahwoo.BRUTAL.Collections" Version="2026.10.2" />
+    <PackageVersion Include="Ahwoo.BRUTAL.Memory" Version="2026.10.2" />
+    <PackageVersion Include="Ahwoo.BRUTAL.Strings" Version="2026.10.2" />
     <PackageVersion Include="SDL3-CS" Version="3.4.20" />
     <PackageVersion Include="Vortice.Mathematics" Version="2.1.1" />
   </ItemGroup>

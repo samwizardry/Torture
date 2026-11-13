@@ -28,4 +28,8 @@
     <DefineConstants>$(DefineConstants);PLATFORM_MACOS;SUPPORT_VULKAN</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(TrackAllocations)' == 'true'">
+    <DefineConstants>$(DefineConstants);TRACK_ALLOCATIONS</DefineConstants>
+  </PropertyGroup>
+
 </Project>

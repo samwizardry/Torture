@@ -1,7 +1,8 @@
 struct VSInput
 {
-    float4 Position : POSITION;
-    float4 Color : COLOR;
+    float3 Position : POSITION;
+    float3 Normal : NORMAL;
+    float4 Texture : TEXCOORD;
 };
 
 struct PSInput
@@ -13,8 +14,8 @@ struct PSInput
 PSInput VSMain(VSInput input)
 {
     PSInput result;
-    result.Position = input.Position;
-    result.Color = input.Color;
+    result.Position = float4(input.Position, 1.0f);
+    result.Color = float4(1.0f, 0.0f, 0.0f, 1.0f);
     return result;
 }
 

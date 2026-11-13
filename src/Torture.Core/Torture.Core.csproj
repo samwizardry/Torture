@@ -4,6 +4,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Ahwoo.BRUTAL.Collections" />
+    <PackageReference Include="Ahwoo.BRUTAL.Memory" />
+    <PackageReference Include="Ahwoo.BRUTAL.Strings" />
     <PackageReference Include="SDL3-CS" />
     <PackageReference Include="Vortice.Mathematics" />
   </ItemGroup>

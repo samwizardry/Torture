@@ -27,7 +27,7 @@ public sealed class D3D11Buffer : Core.Graphics.Buffer
 
         fixed (T* dataPtr = data)
         {
-            SubresourceData initialData = new SubresourceData((nint)dataPtr);
+            SubresourceData initialData = new((nint)dataPtr);
             buffer = device.CreateBuffer(nativeDescription, initialData);
         }
 
