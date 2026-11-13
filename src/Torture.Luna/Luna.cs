@@ -44,8 +44,8 @@ public sealed partial class Luna : Application<Luna>
     {
         _box = Geometry.ComputeBox(Vector3.One, false, false);
 
-        _vb = GraphicsDevice.CreateBuffer(_box.Vertices.AsSpan(), new BufferDescription(BindFlags.VertexBuffer, false));
-        _ib = GraphicsDevice.CreateBuffer(_box.Indices.AsSpan(), new BufferDescription(BindFlags.IndexBuffer, false));
+        _vb = GraphicsDevice.CreateBuffer(_box.Vertices.AsSpan(), BufferDescription.Vertex(0, 0));
+        _ib = GraphicsDevice.CreateBuffer(_box.Indices.AsSpan(), BufferDescription.Index(0));
 
         _box.Vertices.Dispose();
         //_box.Indices.Dispose();
@@ -96,9 +96,9 @@ public sealed partial class Luna : Application<Luna>
         GraphicsDevice.SetVertexShader(_vs);
         GraphicsDevice.SetPixelShader(_ps);
         GraphicsDevice.SetInputLayout(_inputLayout);
-        GraphicsDevice.SetVertexBuffer(_vb, VertexPositionNormalTexture.Layout.Stride, 0, 0);
+        GraphicsDevice.SetVertexBuffer(_vb, _vb.ByteStride, 0, 0);
         GraphicsDevice.SetIndexBuffer(_ib, IndexFormat.UInt16, 0);
-        GraphicsDevice.DrawIndexed((uint)_box.Indices.Count, 0, 0);
+        GraphicsDevice.DrawIndexed(_ib.Count, 0, 0);
     }
 
     protected override void UnloadContent()
@@ -129,7 +129,7 @@ public sealed partial class Luna : Application<Luna>
         {
 #if SUPPORT_DIRECTX
             GraphicsAPI.D3D11
-                => new Torture.Graphics.Direct3D11.D3D11GraphicsDevice(window.WindowHandle, window.ClientSize),
+                => new Graphics.Direct3D11.D3D11GraphicsDevice(window.WindowHandle, window.ClientSize),
 #endif
 #if SUPPORT_VULKAN
             //GraphicsAPI.Vulkan

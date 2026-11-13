@@ -1,6 +1,4 @@
-﻿using SharpGen.Runtime;
-
-using Vortice.Direct3D;
+﻿using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.Direct3D11.Debug;
 using Vortice.DXGI;
@@ -38,7 +36,7 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     private ID3D11Texture2D _depthStencilBuffer = null!;
     private ID3D11DepthStencilView _depthStencilView = null!;
 
-    public D3D11GraphicsDevice(nint hwnd, SizeI size, Format colorFormat = Format.B8G8R8A8_UNorm, Format depthStencilFormat = Format.D24_UNorm_S8_UInt)
+    public D3D11GraphicsDevice(nint hwnd, SizeI clientSize, Format colorFormat = Format.B8G8R8A8_UNorm, Format depthStencilFormat = Format.D24_UNorm_S8_UInt)
     {
 #if DEBUG
         SharpGen.Runtime.Configuration.EnableObjectTracking = true;
@@ -46,7 +44,7 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
 
         try
         {
-            Size = size;
+            ClientSize = clientSize;
             
             /*
              * Родной формат для Windows (DWM и Direct2D): оконный менеджер Windows (Desktop Window Manager) внутри себя работает именно в BGRA8
@@ -145,8 +143,8 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
 
             SwapChainDescription1 swapChainDescription = new()
             {
-                Width = (uint)size.Width,
-                Height = (uint)size.Height,
+                Width = (uint)clientSize.Width,
+                Height = (uint)clientSize.Height,
                 Format = _colorFormat,
                 Stereo = false,
                 SampleDescription = SampleDescription.Default,
@@ -173,7 +171,7 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
             // Handle color space settings for HDR
             UpdateColorSpace();
 
-            OnResize(size.Width, size.Height);
+            OnResize(clientSize.Width, clientSize.Height);
         }
         catch
         {
@@ -186,7 +184,7 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     public override Core.Graphics.GraphicsAPI API => Core.Graphics.GraphicsAPI.D3D11;
 
     /// <inheritdoc />
-    public override SizeI Size { get; protected set; }
+    public override SizeI ClientSize { get; protected set; }
 
     /// <inheritdoc />
     public override Viewport Viewport { get; protected set; }
@@ -205,7 +203,7 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     /// <inheritdoc />
     public override void OnResize(int width, int height)
     {
-        Size = new SizeI(width, height);
+        ClientSize = new SizeI(width, height);
         Viewport = new Viewport(width, height);
         ScissorRect = new RectI(width, height);
 
@@ -268,21 +266,10 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     }
 
     /// <inheritdoc />
-    public override void Clear(in Color4 color, Core.Graphics.ClearFlags flags = Core.Graphics.ClearFlags.All, float depth = 1.0f, byte stencil = 0)
+    public override void Clear()
     {
-        if ((flags & Core.Graphics.ClearFlags.Target) == Core.Graphics.ClearFlags.Target)
-        {
-            _imContext.ClearRenderTargetView(_renderTargetView, color);
-        }
-
-        DepthStencilClearFlags dsClearFlags = DepthStencilClearFlags.None;
-        if ((flags & Core.Graphics.ClearFlags.Depth) == Core.Graphics.ClearFlags.Depth) dsClearFlags |= DepthStencilClearFlags.Depth;
-        if ((flags & Core.Graphics.ClearFlags.Stencil) == Core.Graphics.ClearFlags.Stencil) dsClearFlags |= DepthStencilClearFlags.Stencil;
-
-        if (dsClearFlags != DepthStencilClearFlags.None)
-        {
-            _imContext.ClearDepthStencilView(_depthStencilView, dsClearFlags, depth, stencil);
-        }
+        _imContext.ClearRenderTargetView(_renderTargetView, ClearColor);
+        _imContext.ClearDepthStencilView(_depthStencilView, DepthStencilClearFlags.Depth | DepthStencilClearFlags.Stencil, 1.0f, 0);
     }
 
     /// <inheritdoc />
@@ -317,41 +304,41 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     #region Resource Creation & Binding
 
     /// <inheritdoc />
-    public override Core.Graphics.Buffer CreateBuffer<T>(ReadOnlySpan<T> data, in Core.Graphics.BufferDescription description)
+    public override Core.Graphics.Buffer CreateBuffer<T>(ReadOnlySpan<T> data, in Core.Graphics.BufferDescription desc)
     {
-        return D3D11Buffer.Create(_device, data, description);
+        return D3D11Buffer.Create(_device, data, desc);
     }
 
     /// <inheritdoc />
-    public override Core.Graphics.Buffer CreateBuffer(in Core.Graphics.BufferDescription description)
+    public override Core.Graphics.Buffer CreateBuffer(in Core.Graphics.BufferDescription desc)
     {
-        return D3D11Buffer.Create(_device, description);
+        return D3D11Buffer.Create(_device, desc);
     }
 
     /// <inheritdoc />
-    public override Core.Graphics.Shader CreateShader(in Core.Graphics.ShaderDescription description)
+    public override Core.Graphics.Shader CreateShader(in Core.Graphics.ShaderDescription desc)
     {
-        return new D3D11Shader(_device, description);
+        return new D3D11Shader(_device, desc);
     }
 
     /// <inheritdoc />
-    public override Core.Graphics.InputLayout CreateInputLayout(in Core.Graphics.VertexLayout description, Core.Graphics.Shader shader)
+    public override Core.Graphics.InputLayout CreateInputLayout(in Core.Graphics.VertexLayout desc, Core.Graphics.Shader shader)
     {
-        return new D3D11InputLayout(_device, description, (D3D11Shader)shader);
+        return new D3D11InputLayout(_device, desc, (D3D11Shader)shader);
     }
 
     /// <inheritdoc />
-    public override void SetVertexBuffer(Core.Graphics.Buffer buffer, uint stride, uint slot = 0, uint offset = 0)
+    public override void SetVertexBuffer(Core.Graphics.Buffer buffer, uint byteStride, uint slot = 0, uint byteOffset = 0)
     {
-        var b = (D3D11Buffer)buffer;
-        _imContext.IASetVertexBuffer(slot, b.Native, stride, offset);
+        var d3dBuffer = (D3D11Buffer)buffer;
+        _imContext.IASetVertexBuffer(slot, d3dBuffer.Native, byteStride, byteOffset);
     }
 
     /// <inheritdoc />
-    public override void SetIndexBuffer(Core.Graphics.Buffer buffer, Core.Graphics.IndexFormat format = Core.Graphics.IndexFormat.UInt32, uint offset = 0)
+    public override void SetIndexBuffer(Core.Graphics.Buffer buffer, Core.Graphics.IndexFormat format = Core.Graphics.IndexFormat.UInt32, uint byteOffset = 0)
     {
-        var b = (D3D11Buffer)buffer;
-        _imContext.IASetIndexBuffer(b.Native, format.ToDXGIFormat(), offset);
+        var d3dBuffer = (D3D11Buffer)buffer;
+        _imContext.IASetIndexBuffer(d3dBuffer.Native, format.ToDXGIFormat(), byteOffset);
     }
 
     /// <inheritdoc />
@@ -400,7 +387,9 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
         uint instanceCount,
         uint startVertexLocation = 0,
         uint startInstanceLocation = 0)
-    { }
+    {
+        _imContext.DrawInstanced(vertexCountPerInstance, instanceCount, startVertexLocation, startInstanceLocation);
+    }
 
     /// <inheritdoc />
     public override void DrawIndexedInstanced(
@@ -409,16 +398,20 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
         uint startIndexLocation = 0,
         int baseVertexLocation = 0,
         uint startInstanceLocation = 0)
-    { }
+    {
+        _imContext.DrawIndexedInstanced(indexCountPerInstance, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
+    }
 
     /// <inheritdoc />
     public override void DrawIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0)
     {
+        _imContext.DrawInstancedIndirect(((D3D11Buffer)buffer).Native, alignedByteOffset);
     }
 
     /// <inheritdoc />
     public override void DrawIndexedIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0)
     {
+        _imContext.DrawIndexedInstancedIndirect(((D3D11Buffer)buffer).Native, alignedByteOffset);
     }
 
     #endregion
@@ -426,10 +419,16 @@ public sealed class D3D11GraphicsDevice : Core.Graphics.GraphicsDevice
     #region Compute Commands
 
     /// <inheritdoc />
-    public override void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1) { }
+    public override void Dispatch(uint threadGroupCountX, uint threadGroupCountY = 1, uint threadGroupCountZ = 1)
+    {
+        _imContext.Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+    }
 
     /// <inheritdoc />
-    public override void DispatchIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0) { }
+    public override void DispatchIndirect(Core.Graphics.Buffer buffer, uint alignedByteOffset = 0)
+    {
+        _imContext.DispatchIndirect(((D3D11Buffer)buffer).Native, alignedByteOffset);
+    }
 
     #endregion
 

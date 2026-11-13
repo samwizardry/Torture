@@ -6,7 +6,7 @@ public abstract class GraphicsDevice : IDisposable
 {
     public virtual GraphicsAPI API { get; }
 
-    public virtual SizeI Size { get; protected set; }
+    public virtual SizeI ClientSize { get; protected set; }
 
     public virtual Viewport Viewport { get; protected set; }
 
@@ -34,7 +34,7 @@ public abstract class GraphicsDevice : IDisposable
 
     public abstract bool BeginFrame();
 
-    public abstract void Clear(in Color4 color, ClearFlags flags = ClearFlags.All, float depth = 1.0f, byte stencil = 0);
+    public abstract void Clear();
 
     public abstract bool EndFrame();
 
@@ -44,18 +44,18 @@ public abstract class GraphicsDevice : IDisposable
 
     #region Resource Creation & Binding
 
-    public abstract Buffer CreateBuffer<T>(ReadOnlySpan<T> data, in BufferDescription description)
+    public abstract Buffer CreateBuffer<T>(ReadOnlySpan<T> data, in BufferDescription desc)
         where T : unmanaged;
 
-    public abstract Buffer CreateBuffer(in BufferDescription description);
+    public abstract Buffer CreateBuffer(in BufferDescription desc);
 
-    public abstract Shader CreateShader(in ShaderDescription description);
+    public abstract Shader CreateShader(in ShaderDescription desc);
 
-    public abstract InputLayout CreateInputLayout(in VertexLayout description, Shader shader);
+    public abstract InputLayout CreateInputLayout(in VertexLayout layout, Shader shader);
 
-    public abstract void SetVertexBuffer(Buffer buffer, uint stride, uint slot = 0, uint offset = 0);
+    public abstract void SetVertexBuffer(Buffer buffer, uint byteStride, uint slot = 0, uint byteOffset = 0);
 
-    public abstract void SetIndexBuffer(Buffer buffer, IndexFormat format = IndexFormat.UInt32, uint offset = 0);
+    public abstract void SetIndexBuffer(Buffer buffer, IndexFormat format = IndexFormat.UInt32, uint byteOffset = 0);
 
     public abstract void SetVertexShader(Shader shader);
 

@@ -2,37 +2,38 @@
 
 public readonly record struct BufferDescription
 {
-    public readonly uint ByteWidth;
-    public readonly ResourceUsage Usage = ResourceUsage.Default;
-    public readonly BindFlags BindFlags;
-    public readonly CpuAccessFlags CpuAccessFlags = CpuAccessFlags.None;
-    public readonly ResourceOptionFlags MiscFlags = ResourceOptionFlags.None;
-    public readonly uint StructureByteStride = 0;
+    public readonly uint ByteSize;
+    public readonly uint ByteStride;
+    public readonly BufferUsage Usage;
+    public readonly CpuAccess CpuAccess;
 
-    public BufferDescription(BindFlags bindFlags,
-        bool isDynamic,
-        uint byteWidth = 0,
-        uint structureByteStride = 0)
-        : this(byteWidth,
-              usage: isDynamic ? ResourceUsage.Dynamic : ResourceUsage.Default,
-              bindFlags: bindFlags,
-              cpuAccessFlags: isDynamic ? CpuAccessFlags.Write : CpuAccessFlags.None,
-              miscFlags: ResourceOptionFlags.None,
-              structureByteStride: structureByteStride)
-    { }
-
-    public BufferDescription(uint byteWidth,
-        ResourceUsage usage,
-        BindFlags bindFlags,
-        CpuAccessFlags cpuAccessFlags = CpuAccessFlags.None,
-        ResourceOptionFlags miscFlags = ResourceOptionFlags.None,
-        uint structureByteStride = 0)
+    public BufferDescription(
+        uint byteSize,
+        BufferUsage usage,
+        CpuAccess cpuAccess = CpuAccess.None,
+        uint byteStride = 0)
     {
-        ByteWidth = byteWidth;
+        ByteSize = byteSize;
         Usage = usage;
-        BindFlags = bindFlags;
-        CpuAccessFlags = cpuAccessFlags;
-        MiscFlags = miscFlags;
-        StructureByteStride = structureByteStride;
+        CpuAccess = cpuAccess;
+        ByteStride = byteStride;
     }
+
+    public BufferDescription(
+        BufferUsage usage,
+        bool isDynamic = false,
+        uint byteSize = 0,
+        uint byteStride = 0)
+        : this(byteSize, usage, isDynamic ? CpuAccess.Write : CpuAccess.None, byteStride)
+    {
+    }
+
+    public static BufferDescription Vertex(uint byteSize, uint byteStride, bool isDynamic = false) =>
+        new(byteSize, BufferUsage.VertexBuffer, isDynamic ? CpuAccess.Write : CpuAccess.None, byteStride);
+
+    public static BufferDescription Index(uint byteSize, bool isDynamic = false) =>
+        new(byteSize, BufferUsage.IndexBuffer, isDynamic ? CpuAccess.Write : CpuAccess.None);
+
+    public static BufferDescription Constant(uint byteSize) =>
+        new(byteSize, BufferUsage.ConstantBuffer, CpuAccess.Write);
 }

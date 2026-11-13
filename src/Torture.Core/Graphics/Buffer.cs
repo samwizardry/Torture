@@ -4,13 +4,22 @@ public abstract class Buffer : IDisposable
 {
     protected bool _disposed;
 
-    public uint Count { get; protected set; }
+    /// <summary>
+    /// Buffer size in bytes.
+    /// </summary>
+    public uint ByteSize { get; protected set; }
 
-    public uint Size { get; protected set; }
+    /// <summary>
+    /// Buffer stride in bytes.
+    /// </summary>
+    public uint ByteStride { get; protected set; }
 
-    public uint Stride { get; protected set; }
+    /// <summary>
+    /// Buffer element count.
+    /// </summary>
+    public uint Count => ByteSize / ByteStride;
 
-    public abstract void UpdateBuffer<T>(ReadOnlySpan<T> data, uint offset = 0)
+    public abstract void UpdateBuffer<T>(ReadOnlySpan<T> data, uint byteOffset = 0)
         where T : unmanaged;
 
     public abstract void Dispose();

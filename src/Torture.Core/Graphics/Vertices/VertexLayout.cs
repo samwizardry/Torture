@@ -2,8 +2,6 @@
 
 public readonly record struct VertexLayout : IEquatable<VertexLayout>
 {
-    public uint Stride { get; }
-
     private readonly VertexElement[] _elements;
 
     public VertexLayout(VertexElement[] elements)
@@ -17,8 +15,6 @@ public readonly record struct VertexLayout : IEquatable<VertexLayout>
 
         Span<uint> semanticCounter = stackalloc uint[(int)VertexElementSemantic.Count];
 
-        Stride = 0;
-
         for (int i = 0; i < _elements.Length; ++i)
         {
             uint semanticIndex = semanticCounter[(int)_elements[i].SemanticName];
@@ -27,37 +23,39 @@ public readonly record struct VertexLayout : IEquatable<VertexLayout>
             if (i != 0)
             {
                 _elements[i].SemanticIndex = semanticIndex;
-                _elements[i].Offset = _elements[i - 1].Offset + _elements[i - 1].Format.ByteWidth();
+                _elements[i].ByteOffset = _elements[i - 1].ByteOffset + _elements[i - 1].Format.ByteSize();
             }
             else
             {
                 _elements[i].SemanticIndex = semanticIndex;
-                _elements[i].Offset = 0;
+                _elements[i].ByteOffset = 0;
             }
 
-            Stride += _elements[i].Format.ByteWidth();
+            ByteStride += _elements[i].Format.ByteSize();
         }
     }
+
+    /// <summary>
+    /// Layout size in bytes.
+    /// </summary>
+    public uint ByteStride { get; }
 
     public ReadOnlySpan<VertexElement> Elements => _elements;
 
     public bool Equals(VertexLayout other)
     {
-        return Stride == other.Stride &&
-            _elements.AsSpan().SequenceEqual(other._elements.AsSpan());
+        return _elements.AsSpan().SequenceEqual(other._elements.AsSpan());
     }
 
     public override int GetHashCode()
     {
         var hash = new HashCode();
-        hash.Add(Stride);
-        if (_elements != null)
+
+        for (int i = 0; i < _elements.Length; ++i)
         {
-            foreach (var element in _elements)
-            {
-                hash.Add(element);
-            }
+            hash.Add(_elements[i]);
         }
+
         return hash.ToHashCode();
     }
 }

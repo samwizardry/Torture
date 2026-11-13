@@ -11,9 +11,7 @@ public static class GarbageCollection
     public static void FullBlockingCollect()
     {
         long before = GC.GetTotalMemory(forceFullCollection: false);
-#if DEBUG
         long start = Stopwatch.GetTimestamp();
-#endif
 
         // LOH по умолчанию не компактится; CompactOnce сам сбросится после следующего полного GC.
         GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
@@ -25,9 +23,7 @@ public static class GarbageCollection
         // 2-й проход: собираем то, что освободилось после финализаторов.
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
 
-#if DEBUG
         LogStats(before, Stopwatch.GetElapsedTime(start));
-#endif
     }
 
     /// <summary>Режим «во время геймплея»: без блокирующих gen2, если это возможно.</summary>

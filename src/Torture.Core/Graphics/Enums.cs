@@ -9,62 +9,34 @@ public enum GraphicsAPI : byte
     Headless
 }
 
-public enum ResourceUsage : byte
-{
-    Default,
-    Immutable,
-    Dynamic,
-    Staging
-}
-
 [Flags]
-public enum BindFlags : uint
+public enum BufferUsage : ushort
 {
     None = 0,
-    VertexBuffer = 1,
-    IndexBuffer = 2,
-    ConstantBuffer = 4,
-    ShaderResource = 8,
-    StreamOutput = 0x10,
-    RenderTarget = 0x20,
-    DepthStencil = 0x40,
-    UnorderedAccess = 0x80,
-    Decoder = 0x200,
-    VideoEncoder = 0x400
+    VertexBuffer = 1 << 0,
+    IndexBuffer = 1 << 1,
+    ConstantBuffer = 1 << 2,
+    StructuredBuffer = 1 << 3,
+    IndirectArguments = 1 << 4,
+    ShaderResource = 1 << 5,
+    UnorderedAccess = 1 << 6,
+    RawBuffer = 1 << 7
 }
 
-[Flags]
-public enum CpuAccessFlags : uint
+public enum CpuAccess : byte
 {
+    /// <summary>
+    /// Only for GPU (best performance).
+    /// </summary>
     None = 0,
-    Write = 0x10000,
-    Read = 0x20000
-}
-
-[Flags]
-public enum ResourceOptionFlags : uint
-{
-    None = 0,
-    GenerateMips = 1,
-    Shared = 2,
-    TextureCube = 4,
-    DrawIndirectArguments = 0x10,
-    BufferAllowRawViews = 0x20,
-    BufferStructured = 0x40,
-    ResourceClamp = 0x80,
-    SharedKeyedMutex = 0x100,
-    GdiCompatible = 0x200,
-    SharedNTHandle = 0x800,
-    RestrictedContent = 0x1000,
-    RestrictSharedResource = 0x2000,
-    RestrictSharedResourceDriver = 0x4000,
-    Guarded = 0x8000,
-    TilePool = 0x20000,
-    Tiled = 0x40000,
-    HardwareProtected = 0x80000,
-    SharedDisplayable = 0x100000,
-    SharedExclusiveWriter = 0x200000,
-    NoShaderAccess = 0x400000
+    /// <summary>
+    /// CPU can write to VRAM (Dynamic / Upload).
+    /// </summary>
+    Write,
+    /// <summary>
+    /// CPU can read from VRAM (Staging / Readback).
+    /// </summary>
+    Read
 }
 
 public enum Format : uint

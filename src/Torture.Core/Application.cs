@@ -247,7 +247,7 @@ public abstract class Application<TApp> : SDL.IMainCallbacks<TApp>
             case SDL.EventType.WindowMoved:
                 int x = e.Window.Data1;
                 int y = e.Window.Data2;
-                SizeI currentSize = GraphicsDevice?.Size ?? PreferredWindowSize;
+                SizeI currentSize = GraphicsDevice?.ClientSize ?? PreferredWindowSize;
                 var bounds = new RectI(x, y, currentSize.Width, currentSize.Height);
                 GraphicsDevice?.OnWindowMoved(bounds);
                 OnWindowMoved(bounds);

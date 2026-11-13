@@ -5,7 +5,7 @@ public record struct VertexElement : IEquatable<VertexElement>
     public readonly VertexElementSemantic SemanticName;
     public uint SemanticIndex = 0;
     public readonly VertexElementFormat Format;
-    public uint Offset = 0;
+    public uint ByteOffset = 0;
 
     public VertexElement(VertexElementSemantic semanticName, VertexElementFormat format)
     {
@@ -18,7 +18,7 @@ public record struct VertexElement : IEquatable<VertexElement>
         return SemanticName == other.SemanticName &&
             SemanticIndex == other.SemanticIndex &&
             Format == other.Format &&
-            Offset == other.Offset;
+            ByteOffset == other.ByteOffset;
     }
 
     public override readonly int GetHashCode()
@@ -27,7 +27,7 @@ public record struct VertexElement : IEquatable<VertexElement>
         hash.Add(SemanticName);
         hash.Add(SemanticIndex);
         hash.Add(Format);
-        hash.Add(Offset);
+        hash.Add(ByteOffset);
         return hash.ToHashCode();
     }
 }

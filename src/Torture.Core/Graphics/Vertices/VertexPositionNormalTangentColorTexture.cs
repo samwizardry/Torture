@@ -6,7 +6,7 @@ using Vortice.Mathematics.PackedVector;
 namespace Torture.Core.Graphics;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
-public readonly record struct VertexPositionNormalTangentColorTexture(
+public record struct VertexPositionNormalTangentColorTexture(
     Vector3 Position, Vector3 Normal, Vector4 Tangent, UByte4Normalized Color, Vector2 TexCoord)
 {
     public static readonly VertexLayout Layout;

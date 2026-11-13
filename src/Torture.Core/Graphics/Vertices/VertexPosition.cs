@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace Torture.Core.Graphics;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
-public readonly record struct VertexPosition(Vector3 Position)
+public record struct VertexPosition(Vector3 Position)
 {
     public static readonly VertexLayout Layout;
 

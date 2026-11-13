@@ -6,7 +6,7 @@ using Vortice.Mathematics;
 namespace Torture.Core.Graphics;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
-public readonly record struct VertexPositionColor(Vector3 Position, Color4 Color)
+public record struct VertexPositionColor(Vector3 Position, Color4 Color)
 {
     public static readonly VertexLayout Layout;
 

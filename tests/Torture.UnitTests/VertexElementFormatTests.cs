@@ -47,7 +47,7 @@ public class VertexElementFormatTests
     [InlineData(VertexElementFormat.UNormByte2, 2u)]
     public void ByteWidth_ReturnsExpectedSize(VertexElementFormat format, uint expectedBytes)
     {
-        uint actualBytes = format.ByteWidth();
+        uint actualBytes = format.ByteSize();
 
         actualBytes.Should().Be(expectedBytes,
             because: $"format {format} must occupy exactly {expectedBytes} bytes in GPU memory");
@@ -62,10 +62,10 @@ public class VertexElementFormatTests
 
         foreach (var format in allFormats)
         {
-            var act = () => format.ByteWidth();
+            var act = () => format.ByteSize();
             act.Should().NotThrow(because: $"format {format} must be handled by the switch expression");
 
-            uint width = format.ByteWidth();
+            uint width = format.ByteSize();
             width.Should().BeOneOf([2u, 4u, 8u, 12u, 16u],
                 because: $"byte width ({width}) for format {format} must be a hardware-valid size for the GPU input assembler");
         }

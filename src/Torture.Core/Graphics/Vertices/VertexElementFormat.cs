@@ -126,7 +126,7 @@ public enum VertexElementFormat : byte
 
 public static class VertexElementFormatExtensions
 {
-    public static uint ByteWidth(this VertexElementFormat format)
+    public static uint ByteSize(this VertexElementFormat format)
     {
         switch (format)
         {
