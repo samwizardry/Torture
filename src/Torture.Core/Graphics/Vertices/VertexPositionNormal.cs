@@ -4,9 +4,12 @@ using System.Runtime.InteropServices;
 namespace Torture.Core.Graphics;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
-public record struct VertexPositionNormal(Vector3 Position, Vector3 Normal)
+public record struct VertexPositionNormal(Vector3 position, Vector3 normal)
 {
     public static readonly VertexLayout Layout;
+
+    public Vector3 Position = position;
+    public Vector3 Normal = normal;
 
     static VertexPositionNormal()
     {

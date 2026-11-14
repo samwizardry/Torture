@@ -14,8 +14,8 @@ struct PSInput
 PSInput VSMain(VSInput input)
 {
     PSInput result;
-    result.Position = float4(input.Position, 1.0f);
-    result.Color = float4(1.0f, 0.0f, 0.0f, 1.0f);
+    result.Position = float4(input.Position.xy * 0.8f, input.Position.z * 0.5f + 0.5f, 1.0f);
+    result.Color = float4(1.0f, 1.0f, 1.0f, 1.0f);
     return result;
 }
 

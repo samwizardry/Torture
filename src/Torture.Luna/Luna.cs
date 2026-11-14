@@ -25,7 +25,7 @@ public sealed partial class Luna : Application<Luna>
         WindowMode = WindowMode.Windowed;
     }
 
-    (NativeList<ushort> Indices, NativeList<VertexPositionNormalTexture> Vertices) _box;
+    (NativeList<VertexPositionNormalTexture> Vertices, NativeList<ushort> Indices) _modelData;
     Core.Graphics.Buffer _vb;
     Core.Graphics.Buffer _ib;
     Shader _vs;
@@ -42,13 +42,13 @@ public sealed partial class Luna : Application<Luna>
 
     protected override void LoadContent()
     {
-        _box = Geometry.ComputeBox(Vector3.One, false, false);
+        _modelData = Geometry.ComputeTeapot(1.0f, 25, true, false);
 
-        _vb = GraphicsDevice.CreateBuffer(_box.Vertices.AsSpan(), BufferDescription.Vertex(0, 0));
-        _ib = GraphicsDevice.CreateBuffer(_box.Indices.AsSpan(), BufferDescription.Index(0));
+        _vb = GraphicsDevice.CreateBuffer(_modelData.Vertices.AsSpan(), BufferDescription.Vertex(0, 0));
+        _ib = GraphicsDevice.CreateBuffer(_modelData.Indices.AsSpan(), BufferDescription.Index(0));
 
-        _box.Vertices.Dispose();
-        //_box.Indices.Dispose();
+        _modelData.Vertices.Dispose();
+        _modelData.Indices.Dispose();
 
         var triangleCode = File.ReadAllBytes(Path.Combine("Assets", "Triangle.hlsl"));
 

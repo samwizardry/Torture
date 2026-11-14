@@ -7,9 +7,17 @@ namespace Torture.Core.Graphics;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
 public record struct VertexPositionNormalTangentColorTextureSkinning(
-    Vector3 Position, Vector3 Normal, Vector4 Tangent, UByte4Normalized Color, Vector2 TexCoord, UByte4 BlendIndices, UByte4Normalized BlendWeight)
+    Vector3 position, Vector3 normal, Vector4 tangent, UByte4Normalized color, Vector2 texCoord, UByte4 blendIndices, UByte4Normalized blendWeight)
 {
     public static readonly VertexLayout Layout;
+
+    public Vector3 Position = position;
+    public Vector3 Normal = normal;
+    public Vector4 Tangent = tangent;
+    public UByte4Normalized Color = color;
+    public Vector2 TexCoord = texCoord;
+    public UByte4 BlendIndices = blendIndices;
+    public UByte4Normalized BlendWeight = blendWeight;
 
     static VertexPositionNormalTangentColorTextureSkinning()
     {

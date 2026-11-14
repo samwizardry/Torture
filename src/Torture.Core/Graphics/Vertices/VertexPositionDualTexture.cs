@@ -4,9 +4,13 @@ using System.Runtime.InteropServices;
 namespace Torture.Core.Graphics;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
-public record struct VertexPositionDualTexture(Vector3 Position, Vector2 TexCoord0, Vector2 TexCoord1)
+public record struct VertexPositionDualTexture(Vector3 position, Vector2 texCoord0, Vector2 texCoord1)
 {
     public static readonly VertexLayout Layout;
+
+    public Vector3 Position = position;
+    public Vector2 TexCoord0 = texCoord0;
+    public Vector2 TexCoord1 = texCoord1;
 
     static VertexPositionDualTexture()
     {
